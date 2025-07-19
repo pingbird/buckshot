@@ -1,0 +1,76 @@
+---
+config:
+  themeVariables:
+    fontFamily: Monospace
+    fontWeight: bold
+    edgeLabelBackground: "#0e0e0e"
+    # Node border color
+    nodeBorder: "#2e2e2e"
+  nodeSpacing: 25
+  rankSpacing: 25
+  flowchart:
+    padding: 5
+---
+graph TD;
+  n0[">0:&nbsp;♥&nbsp;&nbsp;&nbsp;&nbsp;|&nbsp;&nbsp;|&nbsp;<br>&nbsp;1:&nbsp;♥&nbsp;&nbsp;&nbsp;&nbsp;|&nbsp;&nbsp;|&nbsp;<br>"]
+  style n0 text-align:left
+  d0-0("shoot 0")
+  style d0-0 border-radius:10px
+  n0 --> d0-0
+  d0-0 -->|"50%"| n1
+  d0-0 -->|"50%"| n2
+  d0-1("shoot 1")
+  style d0-1 border-radius:10px
+  n0 --> d0-1
+  d0-1 -->|"50%"| n7
+  d0-1 -->|"50%"| n8
+  n1["|.|&nbsp;<br>&nbsp;0:&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;|&nbsp;|&nbsp;<br>>1:&nbsp;♥&nbsp;&nbsp;&nbsp;&nbsp;|.|&nbsp;<br>"]
+  style n1 text-align:left
+  style n1 fill:#9f2020
+  n2["|#|&nbsp;<br>>0:&nbsp;♥&nbsp;&nbsp;&nbsp;&nbsp;|#|&nbsp;<br>&nbsp;1:&nbsp;♥&nbsp;&nbsp;&nbsp;&nbsp;|#|&nbsp;<br>"]
+  style n2 text-align:left
+  d2-0("shoot 0")
+  style d2-0 border-radius:10px
+  n2 --> d2-0
+  d2-0 -->|"100%"| n3
+  d2-0 -->|"0%"| n4
+  d2-1("shoot 1")
+  style d2-1 border-radius:10px
+  n2 --> d2-1
+  d2-1 -->|"100%"| n5
+  d2-1 -->|"0%"| n6
+  n3["||&nbsp;<br>&nbsp;0:&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;||&nbsp;<br>>1:&nbsp;♥&nbsp;&nbsp;&nbsp;&nbsp;||&nbsp;<br>"]
+  style n3 text-align:left
+  style n3 fill:#9f2020
+  n4["||&nbsp;<br>>0:&nbsp;♥&nbsp;&nbsp;&nbsp;&nbsp;||&nbsp;<br>&nbsp;1:&nbsp;♥&nbsp;&nbsp;&nbsp;&nbsp;||&nbsp;<br>"]
+  style n4 text-align:left
+  n5["||&nbsp;<br>>0:&nbsp;♥&nbsp;&nbsp;&nbsp;&nbsp;||&nbsp;<br>&nbsp;1:&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;||&nbsp;<br>"]
+  style n5 text-align:left
+  style n5 fill:#1f9020
+  n6["||&nbsp;<br>&nbsp;0:&nbsp;♥&nbsp;&nbsp;&nbsp;&nbsp;||&nbsp;<br>>1:&nbsp;♥&nbsp;&nbsp;&nbsp;&nbsp;||&nbsp;<br>"]
+  style n6 text-align:left
+  n7["|.|&nbsp;<br>>0:&nbsp;♥&nbsp;&nbsp;&nbsp;&nbsp;|.|&nbsp;<br>&nbsp;1:&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;|&nbsp;|&nbsp;<br>"]
+  style n7 text-align:left
+  style n7 fill:#1f9020
+  n8["|#|&nbsp;<br>&nbsp;0:&nbsp;♥&nbsp;&nbsp;&nbsp;&nbsp;|#|&nbsp;<br>>1:&nbsp;♥&nbsp;&nbsp;&nbsp;&nbsp;|#|&nbsp;<br>"]
+  style n8 text-align:left
+  d8-0("shoot 0")
+  style d8-0 border-radius:10px
+  n8 --> d8-0
+  d8-0 -->|"100%"| n9
+  d8-0 -->|"0%"| n10
+  d8-1("shoot 1")
+  style d8-1 border-radius:10px
+  n8 --> d8-1
+  d8-1 -->|"100%"| n11
+  d8-1 -->|"0%"| n12
+  n9["||&nbsp;<br>&nbsp;0:&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;||&nbsp;<br>>1:&nbsp;♥&nbsp;&nbsp;&nbsp;&nbsp;||&nbsp;<br>"]
+  style n9 text-align:left
+  style n9 fill:#9f2020
+  n10["||&nbsp;<br>>0:&nbsp;♥&nbsp;&nbsp;&nbsp;&nbsp;||&nbsp;<br>&nbsp;1:&nbsp;♥&nbsp;&nbsp;&nbsp;&nbsp;||&nbsp;<br>"]
+  style n10 text-align:left
+  n11["||&nbsp;<br>>0:&nbsp;♥&nbsp;&nbsp;&nbsp;&nbsp;||&nbsp;<br>&nbsp;1:&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;||&nbsp;<br>"]
+  style n11 text-align:left
+  style n11 fill:#1f9020
+  n12["||&nbsp;<br>&nbsp;0:&nbsp;♥&nbsp;&nbsp;&nbsp;&nbsp;||&nbsp;<br>>1:&nbsp;♥&nbsp;&nbsp;&nbsp;&nbsp;||&nbsp;<br>"]
+  style n12 text-align:left
