@@ -14,7 +14,7 @@ config:
 graph TD;
   n0["|?&nbsp;&nbsp;|&nbsp;<br>>&nbsp;♥♥&nbsp;|&nbsp;&nbsp;&nbsp;|&nbsp;<br>&nbsp;&nbsp;♥♥&nbsp;|&nbsp;&nbsp;&nbsp;|&nbsp;<br>"]
   style n0 text-align:left,stroke:green;
-  d0-0("54 shoot self")
+  d0-0("-1 shoot self")
   n0 --> d0-0
   p0-0-0(" live")
   d0-0 --> p0-0-0
@@ -22,9 +22,10 @@ graph TD;
   p0-0-1(" blank")
   d0-0 --> p0-0-1
   p0-0-1 -->|"67%"| n8
-  d0-1("60 shoot 1")
+  d0-1("+2 shoot 1")
   n0 --> d0-1
   style d0-1 stroke: green
+  linkStyle 5 stroke: green;
   p0-1-0(" live")
   d0-1 --> p0-1-0
   p0-1-0 -->|"33%"| n21
@@ -33,63 +34,55 @@ graph TD;
   p0-1-1 -->|"67%"| n28
   n1["|..|&nbsp;<br>&nbsp;&nbsp;♥&nbsp;&nbsp;|..|&nbsp;<br>>&nbsp;♥♥&nbsp;|..|&nbsp;<br>"]
   style n1 text-align:left,stroke:red;
-  d1-0("52 shoot 0")
+  d1-0("+4 shoot 0")
   n1 --> d1-0
   style d1-0 stroke: red
-  p1-0-0(" blank")
-  d1-0 --> p1-0-0
-  p1-0-0 -->|"100%"| n2
-  d1-1("52 shoot self")
+  linkStyle 10 stroke: red;
+  d1-0 --> n2
+  d1-1("+4 shoot self")
   n1 --> d1-1
-  p1-1-0(" blank")
-  d1-1 --> p1-1-0
-  p1-1-0 -->|"100%"| n5
+  d1-1 --> n5
   n2["|.|&nbsp;<br>>&nbsp;♥&nbsp;&nbsp;|.|&nbsp;<br>&nbsp;&nbsp;♥♥&nbsp;|.|&nbsp;<br>"]
   style n2 text-align:left,stroke:green;
-  d2-0("48 shoot self")
+  d2-0("-4 shoot self")
   n2 --> d2-0
   style d2-0 stroke: green
-  p2-0-0(" blank")
-  d2-0 --> p2-0-0
-  p2-0-0 -->|"100%"| n3
-  d2-1("48 shoot 1")
+  linkStyle 14 stroke: green;
+  d2-0 --> n3
+  d2-1("-4 shoot 1")
   n2 --> d2-1
-  p2-1-0(" blank")
-  d2-1 --> p2-1-0
-  p2-1-0 -->|"100%"| n4
-  n3["||&nbsp;<br>>&nbsp;♥&nbsp;&nbsp;<br>&nbsp;&nbsp;♥♥&nbsp;<br>48,52<br>20,22"]
+  d2-1 --> n4
+  n3["||&nbsp;<br>>&nbsp;♥&nbsp;&nbsp;<br>&nbsp;&nbsp;♥♥&nbsp;<br>-4,+4"]
   style n3 text-align:left,stroke:green;
-  n4["||&nbsp;<br>>&nbsp;♥&nbsp;&nbsp;<br>&nbsp;&nbsp;♥♥&nbsp;<br>48,52<br>20,22"]
+  n4["||&nbsp;<br>>&nbsp;♥&nbsp;&nbsp;<br>&nbsp;&nbsp;♥♥&nbsp;<br>-4,+4"]
   style n4 text-align:left,stroke:green;
   n5["|.|&nbsp;<br>&nbsp;&nbsp;♥&nbsp;&nbsp;|.|&nbsp;<br>>&nbsp;♥♥&nbsp;|.|&nbsp;<br>"]
   style n5 text-align:left,stroke:red;
-  d5-0("52 shoot 0")
+  d5-0("+4 shoot 0")
   n5 --> d5-0
   style d5-0 stroke: red
-  p5-0-0(" blank")
-  d5-0 --> p5-0-0
-  p5-0-0 -->|"100%"| n6
-  d5-1("52 shoot self")
+  linkStyle 18 stroke: red;
+  d5-0 --> n6
+  d5-1("+4 shoot self")
   n5 --> d5-1
-  p5-1-0(" blank")
-  d5-1 --> p5-1-0
-  p5-1-0 -->|"100%"| n7
-  n6["||&nbsp;<br>>&nbsp;♥&nbsp;&nbsp;<br>&nbsp;&nbsp;♥♥&nbsp;<br>48,52<br>20,22"]
+  d5-1 --> n7
+  n6["||&nbsp;<br>>&nbsp;♥&nbsp;&nbsp;<br>&nbsp;&nbsp;♥♥&nbsp;<br>-4,+4"]
   style n6 text-align:left,stroke:green;
-  n7["||&nbsp;<br>>&nbsp;♥&nbsp;&nbsp;<br>&nbsp;&nbsp;♥♥&nbsp;<br>48,52<br>20,22"]
+  n7["||&nbsp;<br>>&nbsp;♥&nbsp;&nbsp;<br>&nbsp;&nbsp;♥♥&nbsp;<br>-4,+4"]
   style n7 text-align:left,stroke:green;
   n8["|?&nbsp;|&nbsp;<br>>&nbsp;♥♥&nbsp;|&nbsp;&nbsp;|&nbsp;<br>&nbsp;&nbsp;♥♥&nbsp;|&nbsp;&nbsp;|&nbsp;<br>"]
   style n8 text-align:left,stroke:green;
-  d8-0("57 shoot self")
+  d8-0("+1 shoot self")
   n8 --> d8-0
   style d8-0 stroke: green
+  linkStyle 22 stroke: green;
   p8-0-0(" live")
   d8-0 --> p8-0-0
   p8-0-0 -->|"50%"| n9
   p8-0-1(" blank")
   d8-0 --> p8-0-1
   p8-0-1 -->|"50%"| n12
-  d8-1("57 shoot 1")
+  d8-1("+1 shoot 1")
   n8 --> d8-1
   p8-1-0(" live")
   d8-1 --> p8-1-0
@@ -99,131 +92,111 @@ graph TD;
   p8-1-1 -->|"50%"| n18
   n9["|.|&nbsp;<br>&nbsp;&nbsp;♥&nbsp;&nbsp;|.|&nbsp;<br>>&nbsp;♥♥&nbsp;|.|&nbsp;<br>"]
   style n9 text-align:left,stroke:red;
-  d9-0("52 shoot 0")
+  d9-0("+4 shoot 0")
   n9 --> d9-0
   style d9-0 stroke: red
-  p9-0-0(" blank")
-  d9-0 --> p9-0-0
-  p9-0-0 -->|"100%"| n10
-  d9-1("52 shoot self")
+  linkStyle 32 stroke: red;
+  d9-0 --> n10
+  d9-1("+4 shoot self")
   n9 --> d9-1
-  p9-1-0(" blank")
-  d9-1 --> p9-1-0
-  p9-1-0 -->|"100%"| n11
-  n10["||&nbsp;<br>>&nbsp;♥&nbsp;&nbsp;<br>&nbsp;&nbsp;♥♥&nbsp;<br>48,52<br>20,22"]
+  d9-1 --> n11
+  n10["||&nbsp;<br>>&nbsp;♥&nbsp;&nbsp;<br>&nbsp;&nbsp;♥♥&nbsp;<br>-4,+4"]
   style n10 text-align:left,stroke:green;
-  n11["||&nbsp;<br>>&nbsp;♥&nbsp;&nbsp;<br>&nbsp;&nbsp;♥♥&nbsp;<br>48,52<br>20,22"]
+  n11["||&nbsp;<br>>&nbsp;♥&nbsp;&nbsp;<br>&nbsp;&nbsp;♥♥&nbsp;<br>-4,+4"]
   style n11 text-align:left,stroke:green;
   n12["|#|&nbsp;<br>>&nbsp;♥♥&nbsp;|#|&nbsp;<br>&nbsp;&nbsp;♥♥&nbsp;|#|&nbsp;<br>"]
   style n12 text-align:left,stroke:green;
-  d12-0("48 shoot self")
+  d12-0("-4 shoot self")
   n12 --> d12-0
-  p12-0-0(" live")
-  d12-0 --> p12-0-0
-  p12-0-0 -->|"100%"| n13
-  d12-1("67 shoot 1")
+  d12-0 --> n13
+  d12-1("+6 shoot 1")
   n12 --> d12-1
   style d12-1 stroke: green
-  p12-1-0(" live")
-  d12-1 --> p12-1-0
-  p12-1-0 -->|"100%"| n14
-  n13["||&nbsp;<br>>&nbsp;♥&nbsp;&nbsp;<br>&nbsp;&nbsp;♥♥&nbsp;<br>48,52<br>20,22"]
+  linkStyle 38 stroke: green;
+  d12-1 --> n14
+  n13["||&nbsp;<br>>&nbsp;♥&nbsp;&nbsp;<br>&nbsp;&nbsp;♥♥&nbsp;<br>-4,+4"]
   style n13 text-align:left,stroke:green;
-  n14["||&nbsp;<br>>&nbsp;♥♥&nbsp;<br>&nbsp;&nbsp;♥&nbsp;&nbsp;<br>67,33<br>28,14"]
+  n14["||&nbsp;<br>>&nbsp;♥♥&nbsp;<br>&nbsp;&nbsp;♥&nbsp;&nbsp;<br>+6,-6"]
   style n14 text-align:left,stroke:green;
   n15["|.|&nbsp;<br>&nbsp;&nbsp;♥♥&nbsp;|.|&nbsp;<br>>&nbsp;♥&nbsp;&nbsp;|.|&nbsp;<br>"]
   style n15 text-align:left,stroke:red;
-  d15-0("33 shoot 0")
+  d15-0("-6 shoot 0")
   n15 --> d15-0
   style d15-0 stroke: red
-  p15-0-0(" blank")
-  d15-0 --> p15-0-0
-  p15-0-0 -->|"100%"| n16
-  d15-1("33 shoot self")
+  linkStyle 40 stroke: red;
+  d15-0 --> n16
+  d15-1("-6 shoot self")
   n15 --> d15-1
-  p15-1-0(" blank")
-  d15-1 --> p15-1-0
-  p15-1-0 -->|"100%"| n17
-  n16["||&nbsp;<br>>&nbsp;♥♥&nbsp;<br>&nbsp;&nbsp;♥&nbsp;&nbsp;<br>67,33<br>28,14"]
+  d15-1 --> n17
+  n16["||&nbsp;<br>>&nbsp;♥♥&nbsp;<br>&nbsp;&nbsp;♥&nbsp;&nbsp;<br>+6,-6"]
   style n16 text-align:left,stroke:green;
-  n17["||&nbsp;<br>>&nbsp;♥♥&nbsp;<br>&nbsp;&nbsp;♥&nbsp;&nbsp;<br>67,33<br>28,14"]
+  n17["||&nbsp;<br>>&nbsp;♥♥&nbsp;<br>&nbsp;&nbsp;♥&nbsp;&nbsp;<br>+6,-6"]
   style n17 text-align:left,stroke:green;
   n18["|#|&nbsp;<br>&nbsp;&nbsp;♥♥&nbsp;|#|&nbsp;<br>>&nbsp;♥♥&nbsp;|#|&nbsp;<br>"]
   style n18 text-align:left,stroke:red;
-  d18-0("52 shoot 0")
+  d18-0("+4 shoot 0")
   n18 --> d18-0
   style d18-0 stroke: red
-  p18-0-0(" live")
-  d18-0 --> p18-0-0
-  p18-0-0 -->|"100%"| n19
-  d18-1("33 shoot self")
+  linkStyle 44 stroke: red;
+  d18-0 --> n19
+  d18-1("-6 shoot self")
   n18 --> d18-1
-  p18-1-0(" live")
-  d18-1 --> p18-1-0
-  p18-1-0 -->|"100%"| n20
-  n19["||&nbsp;<br>>&nbsp;♥&nbsp;&nbsp;<br>&nbsp;&nbsp;♥♥&nbsp;<br>48,52<br>20,22"]
+  d18-1 --> n20
+  n19["||&nbsp;<br>>&nbsp;♥&nbsp;&nbsp;<br>&nbsp;&nbsp;♥♥&nbsp;<br>-4,+4"]
   style n19 text-align:left,stroke:green;
-  n20["||&nbsp;<br>>&nbsp;♥♥&nbsp;<br>&nbsp;&nbsp;♥&nbsp;&nbsp;<br>67,33<br>28,14"]
+  n20["||&nbsp;<br>>&nbsp;♥♥&nbsp;<br>&nbsp;&nbsp;♥&nbsp;&nbsp;<br>+6,-6"]
   style n20 text-align:left,stroke:green;
   n21["|..|&nbsp;<br>&nbsp;&nbsp;♥♥&nbsp;|..|&nbsp;<br>>&nbsp;♥&nbsp;&nbsp;|..|&nbsp;<br>"]
   style n21 text-align:left,stroke:red;
-  d21-0("33 shoot 0")
+  d21-0("-6 shoot 0")
   n21 --> d21-0
   style d21-0 stroke: red
-  p21-0-0(" blank")
-  d21-0 --> p21-0-0
-  p21-0-0 -->|"100%"| n22
-  d21-1("33 shoot self")
+  linkStyle 48 stroke: red;
+  d21-0 --> n22
+  d21-1("-6 shoot self")
   n21 --> d21-1
-  p21-1-0(" blank")
-  d21-1 --> p21-1-0
-  p21-1-0 -->|"100%"| n25
+  d21-1 --> n25
   n22["|.|&nbsp;<br>>&nbsp;♥♥&nbsp;|.|&nbsp;<br>&nbsp;&nbsp;♥&nbsp;&nbsp;|.|&nbsp;<br>"]
   style n22 text-align:left,stroke:green;
-  d22-0("67 shoot self")
+  d22-0("+6 shoot self")
   n22 --> d22-0
   style d22-0 stroke: green
-  p22-0-0(" blank")
-  d22-0 --> p22-0-0
-  p22-0-0 -->|"100%"| n23
-  d22-1("67 shoot 1")
+  linkStyle 52 stroke: green;
+  d22-0 --> n23
+  d22-1("+6 shoot 1")
   n22 --> d22-1
-  p22-1-0(" blank")
-  d22-1 --> p22-1-0
-  p22-1-0 -->|"100%"| n24
-  n23["||&nbsp;<br>>&nbsp;♥♥&nbsp;<br>&nbsp;&nbsp;♥&nbsp;&nbsp;<br>67,33<br>28,14"]
+  d22-1 --> n24
+  n23["||&nbsp;<br>>&nbsp;♥♥&nbsp;<br>&nbsp;&nbsp;♥&nbsp;&nbsp;<br>+6,-6"]
   style n23 text-align:left,stroke:green;
-  n24["||&nbsp;<br>>&nbsp;♥♥&nbsp;<br>&nbsp;&nbsp;♥&nbsp;&nbsp;<br>67,33<br>28,14"]
+  n24["||&nbsp;<br>>&nbsp;♥♥&nbsp;<br>&nbsp;&nbsp;♥&nbsp;&nbsp;<br>+6,-6"]
   style n24 text-align:left,stroke:green;
   n25["|.|&nbsp;<br>&nbsp;&nbsp;♥♥&nbsp;|.|&nbsp;<br>>&nbsp;♥&nbsp;&nbsp;|.|&nbsp;<br>"]
   style n25 text-align:left,stroke:red;
-  d25-0("33 shoot 0")
+  d25-0("-6 shoot 0")
   n25 --> d25-0
   style d25-0 stroke: red
-  p25-0-0(" blank")
-  d25-0 --> p25-0-0
-  p25-0-0 -->|"100%"| n26
-  d25-1("33 shoot self")
+  linkStyle 56 stroke: red;
+  d25-0 --> n26
+  d25-1("-6 shoot self")
   n25 --> d25-1
-  p25-1-0(" blank")
-  d25-1 --> p25-1-0
-  p25-1-0 -->|"100%"| n27
-  n26["||&nbsp;<br>>&nbsp;♥♥&nbsp;<br>&nbsp;&nbsp;♥&nbsp;&nbsp;<br>67,33<br>28,14"]
+  d25-1 --> n27
+  n26["||&nbsp;<br>>&nbsp;♥♥&nbsp;<br>&nbsp;&nbsp;♥&nbsp;&nbsp;<br>+6,-6"]
   style n26 text-align:left,stroke:green;
-  n27["||&nbsp;<br>>&nbsp;♥♥&nbsp;<br>&nbsp;&nbsp;♥&nbsp;&nbsp;<br>67,33<br>28,14"]
+  n27["||&nbsp;<br>>&nbsp;♥♥&nbsp;<br>&nbsp;&nbsp;♥&nbsp;&nbsp;<br>+6,-6"]
   style n27 text-align:left,stroke:green;
   n28["|?&nbsp;|&nbsp;<br>&nbsp;&nbsp;♥♥&nbsp;|&nbsp;&nbsp;|&nbsp;<br>>&nbsp;♥♥&nbsp;|&nbsp;&nbsp;|&nbsp;<br>"]
   style n28 text-align:left,stroke:red;
-  d28-0("43 shoot 0")
+  d28-0("-1 shoot 0")
   n28 --> d28-0
   style d28-0 stroke: red
+  linkStyle 60 stroke: red;
   p28-0-0(" live")
   d28-0 --> p28-0-0
   p28-0-0 -->|"50%"| n29
   p28-0-1(" blank")
   d28-0 --> p28-0-1
   p28-0-1 -->|"50%"| n32
-  d28-1("43 shoot self")
+  d28-1("-1 shoot self")
   n28 --> d28-1
   p28-1-0(" live")
   d28-1 --> p28-1-0
@@ -233,69 +206,57 @@ graph TD;
   p28-1-1 -->|"50%"| n38
   n29["|.|&nbsp;<br>>&nbsp;♥&nbsp;&nbsp;|.|&nbsp;<br>&nbsp;&nbsp;♥♥&nbsp;|.|&nbsp;<br>"]
   style n29 text-align:left,stroke:green;
-  d29-0("48 shoot self")
+  d29-0("-4 shoot self")
   n29 --> d29-0
   style d29-0 stroke: green
-  p29-0-0(" blank")
-  d29-0 --> p29-0-0
-  p29-0-0 -->|"100%"| n30
-  d29-1("48 shoot 1")
+  linkStyle 70 stroke: green;
+  d29-0 --> n30
+  d29-1("-4 shoot 1")
   n29 --> d29-1
-  p29-1-0(" blank")
-  d29-1 --> p29-1-0
-  p29-1-0 -->|"100%"| n31
-  n30["||&nbsp;<br>>&nbsp;♥&nbsp;&nbsp;<br>&nbsp;&nbsp;♥♥&nbsp;<br>48,52<br>20,22"]
+  d29-1 --> n31
+  n30["||&nbsp;<br>>&nbsp;♥&nbsp;&nbsp;<br>&nbsp;&nbsp;♥♥&nbsp;<br>-4,+4"]
   style n30 text-align:left,stroke:green;
-  n31["||&nbsp;<br>>&nbsp;♥&nbsp;&nbsp;<br>&nbsp;&nbsp;♥♥&nbsp;<br>48,52<br>20,22"]
+  n31["||&nbsp;<br>>&nbsp;♥&nbsp;&nbsp;<br>&nbsp;&nbsp;♥♥&nbsp;<br>-4,+4"]
   style n31 text-align:left,stroke:green;
   n32["|#|&nbsp;<br>>&nbsp;♥♥&nbsp;|#|&nbsp;<br>&nbsp;&nbsp;♥♥&nbsp;|#|&nbsp;<br>"]
   style n32 text-align:left,stroke:green;
-  d32-0("48 shoot self")
+  d32-0("-4 shoot self")
   n32 --> d32-0
-  p32-0-0(" live")
-  d32-0 --> p32-0-0
-  p32-0-0 -->|"100%"| n33
-  d32-1("67 shoot 1")
+  d32-0 --> n33
+  d32-1("+6 shoot 1")
   n32 --> d32-1
   style d32-1 stroke: green
-  p32-1-0(" live")
-  d32-1 --> p32-1-0
-  p32-1-0 -->|"100%"| n34
-  n33["||&nbsp;<br>>&nbsp;♥&nbsp;&nbsp;<br>&nbsp;&nbsp;♥♥&nbsp;<br>48,52<br>20,22"]
+  linkStyle 76 stroke: green;
+  d32-1 --> n34
+  n33["||&nbsp;<br>>&nbsp;♥&nbsp;&nbsp;<br>&nbsp;&nbsp;♥♥&nbsp;<br>-4,+4"]
   style n33 text-align:left,stroke:green;
-  n34["||&nbsp;<br>>&nbsp;♥♥&nbsp;<br>&nbsp;&nbsp;♥&nbsp;&nbsp;<br>67,33<br>28,14"]
+  n34["||&nbsp;<br>>&nbsp;♥♥&nbsp;<br>&nbsp;&nbsp;♥&nbsp;&nbsp;<br>+6,-6"]
   style n34 text-align:left,stroke:green;
   n35["|.|&nbsp;<br>>&nbsp;♥♥&nbsp;|.|&nbsp;<br>&nbsp;&nbsp;♥&nbsp;&nbsp;|.|&nbsp;<br>"]
   style n35 text-align:left,stroke:green;
-  d35-0("67 shoot self")
+  d35-0("+6 shoot self")
   n35 --> d35-0
   style d35-0 stroke: green
-  p35-0-0(" blank")
-  d35-0 --> p35-0-0
-  p35-0-0 -->|"100%"| n36
-  d35-1("67 shoot 1")
+  linkStyle 78 stroke: green;
+  d35-0 --> n36
+  d35-1("+6 shoot 1")
   n35 --> d35-1
-  p35-1-0(" blank")
-  d35-1 --> p35-1-0
-  p35-1-0 -->|"100%"| n37
-  n36["||&nbsp;<br>>&nbsp;♥♥&nbsp;<br>&nbsp;&nbsp;♥&nbsp;&nbsp;<br>67,33<br>28,14"]
+  d35-1 --> n37
+  n36["||&nbsp;<br>>&nbsp;♥♥&nbsp;<br>&nbsp;&nbsp;♥&nbsp;&nbsp;<br>+6,-6"]
   style n36 text-align:left,stroke:green;
-  n37["||&nbsp;<br>>&nbsp;♥♥&nbsp;<br>&nbsp;&nbsp;♥&nbsp;&nbsp;<br>67,33<br>28,14"]
+  n37["||&nbsp;<br>>&nbsp;♥♥&nbsp;<br>&nbsp;&nbsp;♥&nbsp;&nbsp;<br>+6,-6"]
   style n37 text-align:left,stroke:green;
   n38["|#|&nbsp;<br>&nbsp;&nbsp;♥♥&nbsp;|#|&nbsp;<br>>&nbsp;♥♥&nbsp;|#|&nbsp;<br>"]
   style n38 text-align:left,stroke:red;
-  d38-0("52 shoot 0")
+  d38-0("+4 shoot 0")
   n38 --> d38-0
   style d38-0 stroke: red
-  p38-0-0(" live")
-  d38-0 --> p38-0-0
-  p38-0-0 -->|"100%"| n39
-  d38-1("33 shoot self")
+  linkStyle 82 stroke: red;
+  d38-0 --> n39
+  d38-1("-6 shoot self")
   n38 --> d38-1
-  p38-1-0(" live")
-  d38-1 --> p38-1-0
-  p38-1-0 -->|"100%"| n40
-  n39["||&nbsp;<br>>&nbsp;♥&nbsp;&nbsp;<br>&nbsp;&nbsp;♥♥&nbsp;<br>48,52<br>20,22"]
+  d38-1 --> n40
+  n39["||&nbsp;<br>>&nbsp;♥&nbsp;&nbsp;<br>&nbsp;&nbsp;♥♥&nbsp;<br>-4,+4"]
   style n39 text-align:left,stroke:green;
-  n40["||&nbsp;<br>>&nbsp;♥♥&nbsp;<br>&nbsp;&nbsp;♥&nbsp;&nbsp;<br>67,33<br>28,14"]
+  n40["||&nbsp;<br>>&nbsp;♥♥&nbsp;<br>&nbsp;&nbsp;♥&nbsp;&nbsp;<br>+6,-6"]
   style n40 text-align:left,stroke:green;

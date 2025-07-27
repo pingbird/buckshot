@@ -1,7 +1,7 @@
 #![allow(dead_code)]
 #![allow(unused_imports)]
 
-use crate::state::{fmt_percent, fmt_weight, gen_lut, min_cover, Action, BitArray, Game, GameConfig, Gosper, Item, ItemAction, ItemMap, KnownChance, Player};
+use crate::state::{fmt_percent, fmt_weight, gen_lut, min_cover, Action, BitArray, Game, GameConfig, Gosper, Item, ItemAction, ItemMap, KnownChance, Player, EPSILON};
 use slab::Slab;
 use smallvec::{smallvec, SmallVec};
 use std::collections::{HashMap, HashSet};
@@ -23,13 +23,13 @@ fn main() {
             Player {
                 health: 2,
                 items: ItemMap::new(),
-                known_shells: BitArray(0b00),
+                known_shells: BitArray(0b000),
             },
             Player {
                 health: 2,
                 items: ItemMap::new()
                 ,
-                known_shells: BitArray(0b00),
+                known_shells: BitArray(0b000),
             },
         ],
         handcuffed: BitArray(0b00),
@@ -142,7 +142,7 @@ impl<const MULTIPLAYER: bool, const PLAYERS: usize> Node<MULTIPLAYER, PLAYERS> {
     fn player_points(game: &Game<MULTIPLAYER, PLAYERS>, player_index: u8) -> i32 {
         let mut points: i32 = 0;
         let player = &game.players[player_index as usize];
-        points += (player.health as i32) * 8;
+        points += (player.health as i32) * 16;
         let mut n_items = 0;
         for item in Item::ALL {
             n_items += *player.items.get(item) as i32;
@@ -153,7 +153,7 @@ impl<const MULTIPLAYER: bool, const PLAYERS: usize> Node<MULTIPLAYER, PLAYERS> {
         if game.turn == player_index {
             points += n_items * 4;
         } else {
-            points += n_items * 2;
+            points += n_items * 3;
         }
         points += player.known_shells.count() as i32;
         if game.handcuffed.get(player_index) && !game.live_shells.empty() {
@@ -291,7 +291,7 @@ impl<const MULTIPLAYER: bool, const PLAYERS: usize> Tree<MULTIPLAYER, PLAYERS> {
         let mut best_weight = f32::MIN;
         let mut best = None;
         game.visit_actions(&mut |game: &Game<MULTIPLAYER, PLAYERS>, action: Action| {
-            let mut permutations = smallvec![];
+            let mut permutations: SmallVec<[Permutation<PLAYERS>; 2]> = smallvec![];
             let mut weights = [0.0; PLAYERS];
 
             let uses_shell = game.action_uses_shell(&action);
@@ -393,6 +393,9 @@ impl<const MULTIPLAYER: bool, const PLAYERS: usize> Tree<MULTIPLAYER, PLAYERS> {
                             shell: Some((shell, !is_live)),
                             outcomes: flipped_outcomes,
                         });
+                    }
+                    if permutations.len() == 1 {
+                        permutations[0].shell = None;
                     }
                 }
             }
@@ -505,9 +508,9 @@ config:
             if node.decisions.as_ref().map_or(true, |e| e.decisions.is_empty()) && !node.game().game_over() {
                 let weights = Node::heuristic_weights(node.game());
                 game_text += &weights.iter().map(|w| fmt_weight(*w)).collect::<Vec<_>>().join(",");
-                game_text += "\n";
-                let points = Node::all_player_points(node.game()).0;
-                game_text += &points.iter().map(|w| format!("{}", w)).collect::<Vec<_>>().join(",");
+                // game_text += "\n";
+                // let points = Node::all_player_points(node.game()).0;
+                // game_text += &points.iter().map(|w| format!("{}", w)).collect::<Vec<_>>().join(",");
             }
 
             let is_me = Some(node.game().turn) == player;
@@ -548,10 +551,11 @@ config:
                     writeln!(s, "  {}({:?})", ds, format!("{} {}", fmt_weight(weight), action_str)).unwrap();
                     writeln!(s, "  n{} --> {}", node_i, ds).unwrap();
                     let is_best = Some(decision_i) == decisions.best;
-                    n_links += 1;
                     if is_best {
                         writeln!(s, "  style d{}-{} stroke: {}", node_i, decision_i, game_color).unwrap();
+                        writeln!(s, "  linkStyle {} stroke: {};", n_links, game_color).unwrap();
                     }
+                    n_links += 1;
                     for (k, permutation) in decision.permutations.iter().enumerate() {
                         fn write_outcomes<const PLAYERS: usize>(
                             s: &mut String,
@@ -561,7 +565,11 @@ config:
                         ) {
                             for outcome in outcomes.iter() {
                                 let p = if outcome.chance.iter().all(|c| *c == outcome.chance[0]) {
-                                    fmt_percent(outcome.chance[0])
+                                    if (outcome.chance[0] - 1.0).abs() < EPSILON {
+                                        None
+                                    } else {
+                                        Some(fmt_percent(outcome.chance[0]))
+                                    }
                                 } else {
                                     outcome
                                         .chance
@@ -569,8 +577,13 @@ config:
                                         .map(|c| fmt_percent(*c))
                                         .collect::<Vec<_>>()
                                         .join(",")
+                                        .into()
                                 };
-                                writeln!(s, "  {} -->|{:?}| n{}", parent, p, outcome.node).unwrap();
+                                if let Some(p) = p {
+                                    writeln!(s, "  {} -->|{:?}| n{}", parent, p, outcome.node).unwrap();
+                                } else {
+                                    writeln!(s, "  {} --> n{}", parent, outcome.node).unwrap();
+                                }
                                 *n_links += 1;
                             }
                         }
@@ -602,6 +615,7 @@ config:
                 hidden.sort_by_key(|(w, _)| (*w * -1000000.0) as i32);
                 writeln!(s, "  h{}({:?})", node_i, hidden.iter().map(|(w, a)| format!("{} {}", fmt_weight(*w), a)).collect::<Vec<_>>().join("<br>")).unwrap();
                 writeln!(s, "  n{} --> h{}", node_i, node_i).unwrap();
+                n_links += 1;
                 writeln!(s, "  style h{} text-align:left", node_i).unwrap();
             }
         }

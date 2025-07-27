@@ -1257,7 +1257,7 @@ pub fn fmt_percent(value: f32) -> String {
     }
 }
 
-const EPSILON: f32 = 0.0001;
+pub const EPSILON: f32 = 0.0001;
 
 pub fn fmt_weight(weight: f32) -> String {
     if (weight - 1.0).abs() < EPSILON {
@@ -1265,11 +1265,11 @@ pub fn fmt_weight(weight: f32) -> String {
     } else if weight.abs() < EPSILON {
         return "L".to_string();
     }
-    format!("{:.0}", weight * 100.0)
-    // let weight = (weight - 0.5) * 20.0 * 2.0;
-    // if weight > 0.0 {
-    //     format!("+{:.0}", weight)
-    // } else {
-    //     format!("{:.0}", weight)
-    // }
+    // format!("{:.0}", weight * 100.0)
+    let weight = (weight - 0.5) * 20.0 * 2.0;
+    if weight > 0.0 {
+        format!("+{:.0}", weight)
+    } else {
+        format!("{:.0}", weight)
+    }
 }
