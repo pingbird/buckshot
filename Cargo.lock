@@ -9,13 +9,27 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "c08606f8c3cbf4ce6ec8e28fb0014a2c086708fe954eaa885384a6165172e7e8"
 
 [[package]]
+name = "bitintr"
+version = "0.3.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "7ba5a5c4df8ac8673f22698f443ef1ce3853d7f22d5a15ebf66b9a7553b173dd"
+
+[[package]]
 name = "buckshot"
 version = "0.1.0"
 dependencies = [
+ "bitintr",
+ "lazy_static",
  "num-traits",
  "slab",
  "smallvec",
 ]
+
+[[package]]
+name = "lazy_static"
+version = "1.5.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "bbd2bcb4c963f2ddae06a2efc7e9f3591312473c50c6685e1f298068316e66fe"
 
 [[package]]
 name = "num-traits"

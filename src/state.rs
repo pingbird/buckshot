@@ -1,5 +1,12 @@
 use num_traits::{PrimInt, WrappingSub};
+use smallvec::{smallvec, SmallVec};
 use std::fmt::{Display, Formatter};
+use std::ops::{BitAnd, BitOr, Not, Range};
+use std::thread::sleep;
+use std::time::Duration;
+use bitintr::{Pdep, Pext};
+use slab::Iter;
+use lazy_static::lazy_static;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord)]
 #[repr(u8)]
@@ -193,6 +200,10 @@ impl<T: PrimInt + WrappingSub> BitArray<T> {
         BitArray((T::one() << len as usize).wrapping_sub(&T::one()))
     }
 
+    pub fn single(index: u8) -> Self {
+        BitArray(T::one() << index as usize)
+    }
+
     pub fn get(&self, index: u8) -> bool {
         (self.0 >> index as usize) & T::one() != T::zero()
     }
@@ -229,6 +240,29 @@ impl<T: PrimInt + WrappingSub> BitArray<T> {
     pub fn empty(&self) -> bool {
         self.0 == T::zero()
     }
+
+    pub fn union(&self, other: BitArray<T>) -> BitArray<T> {
+        BitArray(self.0 | other.0)
+    }
+
+    pub fn intersection(&self, other: BitArray<T>) -> BitArray<T> {
+        BitArray(self.0 & other.0)
+    }
+}
+
+impl BitOr for BitArray<u8> {
+    type Output = Self;
+
+    fn bitor(self, other: Self) -> Self::Output {
+        BitArray(self.0 | other.0)
+    }
+}
+
+impl BitAnd for BitArray<u8> {
+    type Output = Self;
+    fn bitand(self, other: Self) -> Self::Output {
+        BitArray(self.0 & other.0)
+    }
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
@@ -256,57 +290,101 @@ pub struct Game<const MULTIPLAYER: bool, const PLAYERS: usize> {
     pub forward: bool,
 }
 
+// 8 bits per shell, 0-255 -> 0-1
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+pub struct KnownChance(u64);
+
+impl KnownChance {
+    pub fn new() -> Self {
+        KnownChance(0)
+    }
+
+    pub fn pop_front(&mut self) {
+        self.0 = self.0 >> 8;
+    }
+
+    pub fn get_raw(&self, index: u8) -> u8 {
+        ((self.0 >> (index * 8)) & 0b11111111) as u8
+    }
+
+    pub fn set_raw(&mut self, index: u8, value: u8) {
+        self.0 = (self.0 & !(0b11111111 << (index * 8))) | ((value as u64) << (index * 8));
+    }
+
+    pub fn get(&self, index: u8) -> f32 {
+        self.get_raw(index) as f32 / 255.0
+    }
+
+    pub fn set(&mut self, index: u8, value: f32) {
+        self.set_raw(index, (value * 255.0) as u8);
+    }
+
+    pub fn with(self, index: u8, value: f32) -> Self {
+        let mut new = self.clone();
+        new.set(index, value);
+        new
+    }
+
+    pub fn add_chance(&mut self, index: u8, chance: f32) {
+        if chance == 0.0 {
+            return;
+        } else if chance == 1.0 {
+            self.set(index, 1.0);
+        } else {
+            let current = self.get(index);
+            self.set(index, current + chance * (1.0 - current));
+        }
+    }
+}
+
 pub struct GameWithKnown<const MULTIPLAYER: bool, const PLAYERS: usize> {
     pub game: Game<MULTIPLAYER, PLAYERS>,
-    pub known: BitArray<u8>,
+    pub known_chance: Option<[KnownChance; PLAYERS]>,
 }
 
 impl<const MULTIPLAYER: bool, const PLAYERS: usize> Display
     for GameWithKnown<MULTIPLAYER, PLAYERS>
 {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
-        let known = self.known;
         let game = &self.game;
-        let mut header = false;
-        if !known.empty() {
-            write!(f, "|")?;
-            for i in 0..game.n_shells {
-                if known.get(i) {
-                    if game.live_shells.get(i) {
-                        write!(f, "#")?;
-                    } else {
-                        write!(f, ".")?;
-                    }
+        write!(f, "|")?;
+        for i in 0..game.n_shells {
+            if self.known_chance.is_none() || game.any_known_shells().get(i) {
+                if game.live_shells.get(i) {
+                    write!(f, "#")?;
                 } else {
-                    write!(f, " ")?;
+                    write!(f, ".")?;
                 }
+            } else if self.known_chance.is_some() && game.live_shells.get(i) {
+                write!(f, "?")?;
+            } else {
+                write!(f, " ")?;
             }
-            write!(f, "| ")?;
-            header = true;
         }
+        write!(f, "| ")?;
         if MULTIPLAYER {
             if game.forward {
                 write!(f, "cw ")?;
             } else {
                 write!(f, "ccw ")?;
             }
-            header = true;
         }
         if game.sawed_off {
             write!(f, "sawed ")?;
-            header = true;
         }
-        if header {
-            writeln!(f, "")?;
-        }
+        writeln!(f, "")?;
 
         for player in 0..PLAYERS {
             if game.turn as usize == player {
                 write!(f, ">")?;
+            } else if game.handcuffed.get(player as u8) {
+                write!(f, "&")?;
+            } else if game.players[player].health == 0 {
+                write!(f, "X")?;
             } else {
                 write!(f, " ")?;
             }
-            write!(f, "{}: ", player)?;
+            write!(f, " ")?;
             for h in 0..game.max_health {
                 if game.players[player].health > h {
                     write!(f, "♥")?;
@@ -314,20 +392,22 @@ impl<const MULTIPLAYER: bool, const PLAYERS: usize> Display
                     write!(f, " ")?;
                 }
             }
-            write!(f, " ")?;
-            write!(f, "|")?;
-            for i in 0..game.n_shells {
-                if game.players[player].known_shells.get(i) {
-                    if game.live_shells.get(i) {
-                        write!(f, "#")?;
+            if game.n_shells > 0 && game.players[player].health > 0 {
+                write!(f, " ")?;
+                write!(f, "|")?;
+                for i in 0..game.n_shells {
+                    if game.players[player].known_shells.get(i) {
+                        if game.live_shells.get(i) {
+                            write!(f, "#")?;
+                        } else {
+                            write!(f, ".")?;
+                        }
                     } else {
-                        write!(f, ".")?;
+                        write!(f, " ")?;
                     }
-                } else {
-                    write!(f, " ")?;
                 }
+                write!(f, "|")?;
             }
-            write!(f, "|")?;
             write!(f, " ")?;
             for item in Item::ALL {
                 for _ in 0..*game.players[player].items.get(item) {
@@ -347,7 +427,7 @@ impl<const MULTIPLAYER: bool, const PLAYERS: usize> Display for Game<MULTIPLAYER
             "{}",
             GameWithKnown {
                 game: self.clone(),
-                known: BitArray::all(self.n_shells)
+                known_chance: None,
             }
         )
     }
@@ -398,9 +478,135 @@ impl Display for Action {
     }
 }
 
+type CoverLut = [Vec<u8>; 9];
+
+pub fn gen_lut() -> CoverLut {
+    let mut lut: [Vec<u8>; 9] = Default::default();
+    for i in 0..=u8::MAX {
+        lut[i.count_ones() as usize].push(i);
+    }
+    lut
+}
+
+#[derive(Debug, Clone)]
+pub struct Gosper(u8, u8);
+
+impl Gosper {
+    pub fn new(k: u8, n: u8) -> Self {
+        assert!(k <= n);
+        let start = 1u8.unbounded_shl(k as u32).wrapping_sub(1u8);
+        Gosper(
+            start,
+            start.unbounded_shl((n - k) as u32),
+        )
+    }
+}
+
+impl Iterator for Gosper {
+    type Item = u8;
+    fn next(&mut self) -> Option<Self::Item> {
+        eprintln!("{:?}", self);
+        let next = self.0;
+        if next < self.1 {
+            let c = next & 0.wrapping_sub(&next);
+            let r = next.wrapping_add(c);
+            self.0 = ((((r ^ next) as i8 >> 2) / (c as i8)) | (r as i8)) as u8;
+            Some(next)
+        } else if self.1 == 0 {
+            None
+        } else {
+            let last = self.1;
+            self.1 = 0;
+            Some(last)
+        }
+    }
+}
+
+lazy_static! {
+    static ref LUT: CoverLut = gen_lut();
+}
+
+pub fn min_cover_inner<const S: usize>(sets: [u8; S]) -> u8 {
+    let lut = &LUT;
+    let any = sets.iter().fold(0, u8::bitor);
+    let masks = sets.map(|e| {
+        (e as u32).pext(any as u32) as u8
+    });
+    let max_k = any.count_ones();
+    let max_i = 1u8.unbounded_shl(max_k).wrapping_sub(1u8);
+    for k in 1..any.count_ones() {
+        'gos: for i in &lut[k as usize] {
+            for mask in &masks {
+                if i & mask == 0 {
+                    if *i >= max_i {
+                        break 'gos;
+                    }
+                    continue 'gos;
+                }
+            }
+            return (*i as u32).pdep(any as u32) as u8;
+        }
+    }
+    any
+}
+
+pub fn min_cover(sets: &[u8]) -> u8 {
+    if sets.is_empty() {
+        return 0;
+    }
+    if let Ok(sets) = <[u8; 1]>::try_from(sets) {
+        min_cover_inner(sets)
+    } else if let Ok(sets) = <[u8; 2]>::try_from(sets) {
+        min_cover_inner(sets)
+    } else if let Ok(sets) = <[u8; 3]>::try_from(sets) {
+        min_cover_inner(sets)
+    } else if let Ok(sets) = <[u8; 4]>::try_from(sets) {
+        min_cover_inner(sets)
+    } else if let Ok(sets) = <[u8; 5]>::try_from(sets) {
+        min_cover_inner(sets)
+    } else if let Ok(sets) = <[u8; 6]>::try_from(sets) {
+        min_cover_inner(sets)
+    } else if let Ok(sets) = <[u8; 7]>::try_from(sets) {
+        min_cover_inner(sets)
+    } else if let Ok(sets) = <[u8; 8]>::try_from(sets) {
+        min_cover_inner(sets)
+    } else {
+        panic!("Unsupported");
+    }
+}
+
 impl<const MULTIPLAYER: bool, const PLAYERS: usize> Game<MULTIPLAYER, PLAYERS> {
-    pub fn with_known(self, known: BitArray<u8>) -> GameWithKnown<MULTIPLAYER, PLAYERS> {
-        GameWithKnown { game: self, known }
+    pub fn with_known(
+        self,
+        known_chance: [KnownChance; PLAYERS],
+    ) -> GameWithKnown<MULTIPLAYER, PLAYERS> {
+        GameWithKnown {
+            game: self,
+            known_chance: Some(known_chance),
+        }
+    }
+
+    pub fn assert_valid(&self) {
+        assert_eq!(self.live_shells.0, self.live_shells.0 & BitArray::<u8>::all(self.n_shells).0);
+        for i in  0..PLAYERS {
+            for j in 0..self.n_shells {
+                let swaps = self.all_swaps(j, self.players[i].known_shells);
+                assert_eq!(swaps, swaps & BitArray::<u8>::all(self.n_shells));
+                if let Some(shell) = self.try_swap(j, self.players[i].known_shells) {
+                    assert!(swaps.get(shell))
+                } else {
+                    assert_eq!(swaps, BitArray::zero())
+                }
+            }
+        }
+    }
+
+    pub fn shell_mask(&self) -> u8 {
+        (1 << self.n_shells).wrapping_sub(&1)
+    }
+
+    pub fn blank_shells(&self) -> BitArray<u8> {
+        BitArray((!self.live_shells.0) & self.shell_mask())
     }
 
     pub fn n_live(&self) -> u32 {
@@ -517,6 +723,7 @@ impl<const MULTIPLAYER: bool, const PLAYERS: usize> Game<MULTIPLAYER, PLAYERS> {
         actions: &mut Vec<Action>,
         f: &mut F,
     ) {
+        self.assert_valid();
         self.visit_actions(|game, action| {
             actions.push(action.clone());
             let known_shells = self.all_known_shells();
@@ -582,7 +789,7 @@ impl<const MULTIPLAYER: bool, const PLAYERS: usize> Game<MULTIPLAYER, PLAYERS> {
         if live != self.live_shells.get(shell) {
             // If we learned a shell was wrong, swap it with the first unknown shell of the opposite kind
             let known_shells = self.players[player as usize].known_shells;
-            self.flip(shell, known_shells)
+            self.swap_first(shell, known_shells)
         } else {
             self
         }
@@ -596,7 +803,8 @@ impl<const MULTIPLAYER: bool, const PLAYERS: usize> Game<MULTIPLAYER, PLAYERS> {
     pub fn normalize_known(mut self) -> Self {
         if self.n_shells == 0 {
             return self;
-        } if self.n_shells == 1 {
+        }
+        if self.n_shells == 1 {
             // Everyone should know the last shell
             let mut known_shells = BitArray::zero();
             known_shells.set(0, true);
@@ -611,8 +819,11 @@ impl<const MULTIPLAYER: bool, const PLAYERS: usize> Game<MULTIPLAYER, PLAYERS> {
             }
         } else {
             for player in 0..PLAYERS {
-                // If the player knows all but one shell, they now know all of them
-                if self.players[player].known_shells.count() == (self.n_shells - 1) as u32 {
+                // If the player knows all lives or all blanks, they now know all of them
+                let known = self.players[player].known_shells;
+                let blank_shells = self.blank_shells();
+                if self.live_shells == self.live_shells & known ||
+                    blank_shells == blank_shells & known {
                     self.players[player].known_shells = BitArray::all(self.n_shells);
                 }
             }
@@ -621,8 +832,10 @@ impl<const MULTIPLAYER: bool, const PLAYERS: usize> Game<MULTIPLAYER, PLAYERS> {
     }
 
     pub fn eject_round(mut self) -> Self {
+        self.assert_valid();
         self.n_shells -= 1;
         self.live_shells.pop_front();
+        self.assert_valid();
         for player in 0..PLAYERS {
             self.players[player].known_shells.pop_front();
         }
@@ -741,7 +954,7 @@ impl<const MULTIPLAYER: bool, const PLAYERS: usize> Game<MULTIPLAYER, PLAYERS> {
                     let damage = self.live_damage();
                     f(self.eject_round().damage_and_end_turn(target, damage), 1.0);
                 } else if target == self.turn {
-                    f(self.eject_round(), 1.0);
+                    f(self.eject_round().continue_turn(), 1.0);
                 } else {
                     f(self.eject_round().end_turn(), 1.0);
                 }
@@ -815,7 +1028,11 @@ impl<const MULTIPLAYER: bool, const PLAYERS: usize> Game<MULTIPLAYER, PLAYERS> {
         }
     }
 
-    pub fn visit_item_reveal_chance<F: FnMut(&Self, Option<u8>, u8, f32)>(&self, item: Item, mut f: F) -> bool {
+    pub fn visit_item_reveal_chance<F: FnMut(&Self, Option<u8>, u8, f32)>(
+        &self,
+        item: Item,
+        mut f: F,
+    ) -> bool {
         match item {
             Beer | MagnifyingGlass => {
                 f(self, None, 0, 1.0);
@@ -833,16 +1050,20 @@ impl<const MULTIPLAYER: bool, const PLAYERS: usize> Game<MULTIPLAYER, PLAYERS> {
                     false
                 }
             }
-            _ => false
+            _ => false,
         }
     }
 
-    pub fn visit_action_reveal_chance<F: FnMut(&Self, Option<u8>, u8, f32)>(&self, action: &Action, mut f: F) -> bool {
+    pub fn visit_action_reveal_chance<F: FnMut(&Self, Option<u8>, u8, f32)>(
+        &self,
+        action: &Action,
+        mut f: F,
+    ) -> bool {
         match action {
             Action::Item(item_action) => match item_action {
                 ItemAction::UseSimple(item) => self.visit_item_reveal_chance(*item, f),
                 ItemAction::StealSimple(_, item) => self.visit_item_reveal_chance(*item, f),
-                _ => false
+                _ => false,
             },
             Action::Shoot(_) => {
                 f(self, None, 0, 1.0);
@@ -871,25 +1092,34 @@ impl<const MULTIPLAYER: bool, const PLAYERS: usize> Game<MULTIPLAYER, PLAYERS> {
         unknown_live as f32 / unknown as f32
     }
 
+    pub fn flip(mut self, shell: u8) -> Self {
+        let shell_mask = 1 << shell;
+        self.live_shells.0 ^= shell_mask;
+        self.assert_valid();
+        self
+    }
+
     // Swap a shell with the first unknown shell of the opposite kind
-    pub fn flip(mut self, shell: u8, known: BitArray<u8>) -> Self {
+    pub fn swap_first(mut self, shell: u8, known: BitArray<u8>) -> Self {
         let shell_mask = 1 << shell;
         // Mask out the shell we want to flip
         let mask = known.0 | shell_mask;
-        let shell = if self.live_shells.get(shell) {
+        let other_shell = if self.live_shells.get(shell) {
             // Get the first unknown blank
             (self.live_shells.0 | mask).trailing_ones()
         } else {
             // Get the first unknown live
             (self.live_shells.0 & !mask).trailing_zeros()
         };
-        assert!(shell != 32);
+        assert!(other_shell != 32);
         // Flip both bits
-        self.live_shells.0 ^= shell_mask | (1 << shell);
+        self.assert_valid();
+        self.live_shells.0 ^= shell_mask | (1 << other_shell);
+        self.assert_valid();
         self
     }
 
-    pub fn can_flip(&self, shell: u8, known: BitArray<u8>) -> bool {
+    pub fn try_swap(&self, shell: u8, known: BitArray<u8>) -> Option<u8> {
         let shell_mask = 1 << shell;
         let mask = known.0 | shell_mask;
         let shell = if self.live_shells.get(shell) {
@@ -897,14 +1127,43 @@ impl<const MULTIPLAYER: bool, const PLAYERS: usize> Game<MULTIPLAYER, PLAYERS> {
         } else {
             (self.live_shells.0 & !mask).trailing_zeros()
         };
-        shell != 32
+        if shell < self.n_shells as u32 {
+            Some(shell as u8)
+        } else {
+            None
+        }
+    }
+
+    pub fn all_swaps(&self, shell: u8, known: BitArray<u8>) -> BitArray<u8> {
+        let shell_mask = 1 << shell;
+        let mask = known.0 | shell_mask;
+        if self.live_shells.get(shell) {
+            BitArray(!(self.live_shells.0 | mask | !BitArray::<u8>::all(self.n_shells).0))
+        } else {
+            BitArray(self.live_shells.0 & !mask)
+        }
+    }
+
+    pub fn all_player_known(&self) -> [BitArray<u8>; PLAYERS] {
+        std::array::from_fn(|player| self.players[player].known_shells)
+    }
+
+    pub fn all_player_swaps(&self, shell: u8) -> [BitArray<u8>; PLAYERS] {
+        let shell_mask = 1 << shell;
+        let all_known = self.all_player_known();
+        if self.live_shells.get(shell) {
+            let mask = shell_mask | self.live_shells.0 | !BitArray::<u8>::all(self.n_shells).0;
+            all_known.map(|known| BitArray(!(known.0 | mask)))
+        } else {
+            all_known.map(|known| BitArray(self.live_shells.0 & (!known.0 | shell_mask)))
+        }
     }
 
     pub fn reveal(mut self, player: u8, shell: u8, live: bool) -> Self {
         self.players[player as usize].known_shells.set(shell, true);
         if live != self.live_shells.get(shell) {
             let known_shells = self.players[player as usize].known_shells;
-            self.flip(shell, known_shells)
+            self.swap_first(shell, known_shells)
         } else {
             self
         }
@@ -922,12 +1181,29 @@ impl<const MULTIPLAYER: bool, const PLAYERS: usize> Game<MULTIPLAYER, PLAYERS> {
             let live_chance = self.live_chance(0, known);
             if self.live_shells.front() {
                 f(self.clone(), live_chance * chance);
-                f(self.flip(0, known), (1.0 - live_chance) * chance);
+                f(self.swap_first(0, known), (1.0 - live_chance) * chance);
             } else {
                 f(self.clone(), (1.0 - live_chance) * chance);
-                f(self.flip(0, known), live_chance * chance);
+                f(self.swap_first(0, known), live_chance * chance);
             };
         }
+    }
+
+    pub fn end_round(mut self) -> Self {
+        // In singleplayer, if the shotgun is empty, the player is not dead, then un-handcuff us and reset the turn.
+        if !MULTIPLAYER && self.n_shells == 0 && self.players[self.turn as usize].health != 0 {
+            self.handcuffed.set(self.turn, false);
+            self.turn = 0;
+            return self;
+        }
+        self
+    }
+
+    pub fn continue_turn(self) -> Self {
+        if self.n_shells == 0 {
+            return self.end_round();
+        }
+        self
     }
 
     pub fn end_turn(mut self) -> Self {
@@ -950,16 +1226,20 @@ impl<const MULTIPLAYER: bool, const PLAYERS: usize> Game<MULTIPLAYER, PLAYERS> {
             }
             break;
         }
+        if self.n_shells == 0 {
+            return self.end_round();
+        }
         self
     }
 
     pub fn game_over(&self) -> bool {
+        let mut players_alive = 0;
         for player in 0..PLAYERS {
-            if self.players[player].health == 0 {
-                return true;
+            if self.players[player].health > 0 {
+                players_alive += 1;
             }
         }
-        false
+        players_alive < 2
     }
 
     pub fn round_over(&self) -> bool {
@@ -975,4 +1255,21 @@ pub fn fmt_percent(value: f32) -> String {
     } else {
         format!("{:.0}%", value * 100.0)
     }
+}
+
+const EPSILON: f32 = 0.0001;
+
+pub fn fmt_weight(weight: f32) -> String {
+    if (weight - 1.0).abs() < EPSILON {
+        return "W".to_string();
+    } else if weight.abs() < EPSILON {
+        return "L".to_string();
+    }
+    format!("{:.0}", weight * 100.0)
+    // let weight = (weight - 0.5) * 20.0 * 2.0;
+    // if weight > 0.0 {
+    //     format!("+{:.0}", weight)
+    // } else {
+    //     format!("{:.0}", weight)
+    // }
 }
