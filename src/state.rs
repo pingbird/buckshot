@@ -1,6 +1,6 @@
 use num_traits::{PrimInt, WrappingSub};
 use smallvec::{smallvec, SmallVec};
-use std::fmt::{Display, Formatter};
+use std::fmt::{format, Display, Formatter};
 use std::ops::{BitAnd, BitOr, Not, Range};
 use std::thread::sleep;
 use std::time::Duration;
@@ -28,10 +28,6 @@ use Item::{
     MagnifyingGlass, Remote,
 };
 
-const fn imask(item: Item) -> u16 {
-    1 << (item as u16)
-}
-
 impl Item {
     pub const COUNT: usize = 10;
 
@@ -46,6 +42,29 @@ impl Item {
         HandSaw,
         Handcuffs,
         Adrenaline,
+    ];
+
+    pub const AFFECTED_BY: [&'static [Item]; Self::COUNT] = [
+        // ExpiredMedicine
+        &[],
+        // Inverter
+        &[],
+        // Cigarette
+        &[],
+        // BurnerPhone
+        &[],
+        // MagnifyingGlass
+        &[],
+        // Beer
+        &[],
+        // Remote
+        &[],
+        // HandSaw
+        &[],
+        // Handcuffs
+        &[],
+        // Adrenaline
+        &[],
     ];
 }
 
@@ -191,13 +210,13 @@ impl ItemCountMap for ItemMap<u8> {
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub struct BitArray<T: PrimInt + WrappingSub>(pub T);
 
-impl<T: PrimInt + WrappingSub> BitArray<T> {
+impl<T: PrimInt + WrappingSub + TryFrom<u64>> BitArray<T> {
     pub fn zero() -> Self {
         BitArray(T::zero())
     }
 
     pub fn all(len: u8) -> Self {
-        BitArray((T::one() << len as usize).wrapping_sub(&T::one()))
+        BitArray(T::from(T::one().to_u64().unwrap().unbounded_shl(len as u32).wrapping_sub(1)).unwrap())
     }
 
     pub fn single(index: u8) -> Self {
@@ -337,25 +356,25 @@ impl KnownChance {
     }
 }
 
-pub struct GameWithKnown<const MULTIPLAYER: bool, const PLAYERS: usize> {
+pub struct GameWithMask<const MULTIPLAYER: bool, const PLAYERS: usize> {
     pub game: Game<MULTIPLAYER, PLAYERS>,
-    pub known_chance: Option<[KnownChance; PLAYERS]>,
+    pub is_masked: bool,
 }
 
 impl<const MULTIPLAYER: bool, const PLAYERS: usize> Display
-    for GameWithKnown<MULTIPLAYER, PLAYERS>
+    for GameWithMask<MULTIPLAYER, PLAYERS>
 {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         let game = &self.game;
         write!(f, "|")?;
         for i in 0..game.n_shells {
-            if self.known_chance.is_none() || game.any_known_shells().get(i) {
+            if !self.is_masked || game.any_known_shells().get(i) {
                 if game.live_shells.get(i) {
                     write!(f, "#")?;
                 } else {
                     write!(f, ".")?;
                 }
-            } else if self.known_chance.is_some() && game.live_shells.get(i) {
+            } else if self.is_masked && game.live_shells.get(i) {
                 write!(f, "?")?;
             } else {
                 write!(f, " ")?;
@@ -425,15 +444,15 @@ impl<const MULTIPLAYER: bool, const PLAYERS: usize> Display for Game<MULTIPLAYER
         write!(
             f,
             "{}",
-            GameWithKnown {
+            GameWithMask {
                 game: self.clone(),
-                known_chance: None,
+                is_masked: false,
             }
         )
     }
 }
 
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum ItemAction {
     UseSimple(Item),
     StealSimple(u8, Item),
@@ -446,19 +465,26 @@ impl Display for ItemAction {
         write!(
             f,
             "{}",
-            match self {
-                ItemAction::UseSimple(item) => format!("use {}", item),
-                ItemAction::StealSimple(player, item) => format!("steal {} from {}", item, player),
-                ItemAction::StealHandcuffs(player, target) =>
-                    format!("use {} on {} from {}", Handcuffs, target, player),
-                ItemAction::Handcuff(target) => format!("use {} on {}", Handcuffs, target),
-            }
+            self.to_string(None),
         )?;
         Ok(())
     }
 }
 
-#[derive(Debug, Clone, PartialEq, Eq)]
+impl ItemAction {
+    pub fn to_string(&self, n_players: Option<usize>) -> String {
+        match self {
+            ItemAction::UseSimple(item) => format!("use {}", item),
+            ItemAction::StealSimple(player, item) if n_players == Some(2) => format!("steal {}", item),
+            ItemAction::StealSimple(player, item) => format!("steal {} from {}", item, player),
+            ItemAction::StealHandcuffs(player, target) =>
+                format!("use {} on {} from {}", Handcuffs, target, player),
+            ItemAction::Handcuff(target) => format!("use {} on {}", Handcuffs, target),
+        }
+    }
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum Action {
     Item(ItemAction),
     Shoot(u8),
@@ -469,12 +495,20 @@ impl Display for Action {
         write!(
             f,
             "{}",
-            match self {
-                Action::Item(action) => action.to_string(),
-                Action::Shoot(target) => format!("shoot {}", target),
-            }
+            self.to_string(None, None),
         )?;
         Ok(())
+    }
+}
+
+impl Action {
+    pub fn to_string(&self, player: Option<u8>, n_players: Option<usize>) -> String {
+        match self {
+            Action::Item(action) => action.to_string(n_players),
+            Action::Shoot(target) if Some(*target) == player => "shoot self".to_string(),
+            Action::Shoot(target) if n_players == Some(2) && Some(*target) != player => "shoot".to_string(),
+            Action::Shoot(target) => format!("shoot {}", target),
+        }
     }
 }
 
@@ -505,7 +539,7 @@ impl Gosper {
 impl Iterator for Gosper {
     type Item = u8;
     fn next(&mut self) -> Option<Self::Item> {
-        eprintln!("{:?}", self);
+        
         let next = self.0;
         if next < self.1 {
             let c = next & 0.wrapping_sub(&next);
@@ -576,13 +610,12 @@ pub fn min_cover(sets: &[u8]) -> u8 {
 }
 
 impl<const MULTIPLAYER: bool, const PLAYERS: usize> Game<MULTIPLAYER, PLAYERS> {
-    pub fn with_known(
+    pub fn with_mask(
         self,
-        known_chance: [KnownChance; PLAYERS],
-    ) -> GameWithKnown<MULTIPLAYER, PLAYERS> {
-        GameWithKnown {
+    ) -> GameWithMask<MULTIPLAYER, PLAYERS> {
+        GameWithMask {
             game: self,
-            known_chance: Some(known_chance),
+            is_masked: true,
         }
     }
 
@@ -602,7 +635,7 @@ impl<const MULTIPLAYER: bool, const PLAYERS: usize> Game<MULTIPLAYER, PLAYERS> {
     }
 
     pub fn shell_mask(&self) -> u8 {
-        (1 << self.n_shells).wrapping_sub(&1)
+        (1u8.unbounded_shl(self.n_shells as u32)).wrapping_sub(1u8)
     }
 
     pub fn blank_shells(&self) -> BitArray<u8> {
@@ -960,6 +993,19 @@ impl<const MULTIPLAYER: bool, const PLAYERS: usize> Game<MULTIPLAYER, PLAYERS> {
                 }
             }
         }
+    }
+
+    fn apply_actions_inner<F: FnMut(Game<MULTIPLAYER, PLAYERS>, f32)>(self, actions: &[Action], chance: f32, f: &mut F) {
+        match actions {
+            [] => f(self, chance),
+            [next, rest @ ..] => self.apply_action(*next, |game, chance2| {
+                game.apply_actions_inner(rest, chance * chance2, f)
+            })
+        }
+    }
+
+    pub fn apply_actions<F: FnMut(Game<MULTIPLAYER, PLAYERS>, f32)>(self, actions: &[Action], mut f: F) {
+        self.apply_actions_inner(actions, 1.0, &mut f)
     }
 
     fn is_item_certain(&self, known_shells: BitArray<u8>, item: Item) -> bool {
