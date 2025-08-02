@@ -91,7 +91,7 @@ impl Display for Item {
 pub struct ItemSet(pub u16);
 
 impl ItemSet {
-    pub const ALL: ItemSet = ItemSet(0b111111111);
+    pub const ALL: ItemSet = ItemSet((1 << Item::COUNT) - 1);
 
     pub fn new() -> Self {
         ItemSet(0)
@@ -158,6 +158,22 @@ impl<V> ItemMap<V> {
     pub fn with(mut self, item: Item, value: V) -> ItemMap<V> {
         self.set(item, value);
         self
+    }
+}
+
+impl Display for ItemMap<u8> {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        let mut first = true;
+        for item in Item::ALL {
+            for _ in 0..*self.get(item) {
+                if !first {
+                    write!(f, " ")?;
+                }
+                write!(f, "{}", item)?;
+                first = false;
+            }
+        }
+        Ok(())
     }
 }
 
@@ -397,7 +413,7 @@ impl<const MULTIPLAYER: bool, const PLAYERS: usize> Display for GameWithMask<MUL
             }
         }
         if game.sawed_off {
-            write!(f, "sawed ")?;
+            write!(f, "x2 ")?;
         }
         writeln!(f, "")?;
 
@@ -588,7 +604,12 @@ pub struct RevealPermutation<const MULTIPLAYER: bool, const PLAYERS: usize> {
 }
 
 impl<const MULTIPLAYER: bool, const PLAYERS: usize> RevealPermutation<MULTIPLAYER, PLAYERS> {
-    pub fn expand<F: FnMut(Game<MULTIPLAYER, PLAYERS>) -> SmallVec<[(Game<MULTIPLAYER, PLAYERS>, f32); 2]>>(self, mut f: F) -> Self {
+    pub fn expand<
+        F: FnMut(Game<MULTIPLAYER, PLAYERS>) -> SmallVec<[(Game<MULTIPLAYER, PLAYERS>, f32); 2]>,
+    >(
+        self,
+        mut f: F,
+    ) -> Self {
         let mut outcomes = smallvec![];
         for (game, chance) in self.outcomes {
             for (outcome, outcome_chance) in f(game) {
@@ -601,10 +622,17 @@ impl<const MULTIPLAYER: bool, const PLAYERS: usize> RevealPermutation<MULTIPLAYE
         }
     }
 
-    pub fn map<F: FnMut(Game<MULTIPLAYER, PLAYERS>) -> Game<MULTIPLAYER, PLAYERS>>(self, mut f: F) -> Self {
+    pub fn map<F: FnMut(Game<MULTIPLAYER, PLAYERS>) -> Game<MULTIPLAYER, PLAYERS>>(
+        self,
+        mut f: F,
+    ) -> Self {
         RevealPermutation {
             reveal: self.reveal,
-            outcomes: self.outcomes.into_iter().map(|(game, chance)| (f(game), chance)).collect()
+            outcomes: self
+                .outcomes
+                .into_iter()
+                .map(|(game, chance)| (f(game), chance))
+                .collect(),
         }
     }
 }
@@ -681,8 +709,11 @@ impl<const MULTIPLAYER: bool, const PLAYERS: usize> Game<MULTIPLAYER, PLAYERS> {
     }
 
     pub fn visit_item_actions<F: FnMut(&Self, ItemAction) -> ()>(&self, items: ItemSet, mut f: F) {
+        eprintln!("items: {}", self.players[self.turn as usize].items);
         let turn_items = self.players[self.turn as usize].items.to_set();
         let allowed = turn_items.intersection(items);
+        eprintln!("allowed: {:b}", allowed.0);
+        eprintln!("turn_items: {:b}", turn_items.0);
         for item in [
             ExpiredMedicine,
             Inverter,
@@ -777,13 +808,15 @@ impl<const MULTIPLAYER: bool, const PLAYERS: usize> Game<MULTIPLAYER, PLAYERS> {
         known_shells
     }
 
-    pub fn visit_certain_inner<F: FnMut(&[Action], &Self, bool)>(
+    pub fn visit_certain_inner<F: FnMut(&[Action], &Self, Option<Action>)>(
         &self,
         actions: &mut Vec<Action>,
         f: &mut F,
     ) {
         self.assert_valid();
+        eprintln!("items: {}", self.players[self.turn as usize].items);
         self.visit_actions(|game, action| {
+            eprintln!("{}", action);
             actions.push(action.clone());
             let known_shells = self.all_known_shells();
             if game.is_action_certain(known_shells, action) {
@@ -792,7 +825,7 @@ impl<const MULTIPLAYER: bool, const PLAYERS: usize> Game<MULTIPLAYER, PLAYERS> {
                         assert_eq!(next_chance, 1.0);
                         // Stop if the round is over or the turn has changed
                         if next_game.round_over() || next_game.turn != game.turn {
-                            f(actions, &next_game, true);
+                            f(actions, &next_game, None);
                             return;
                         } else {
                             next_game.visit_certain_inner(actions, f);
@@ -800,13 +833,13 @@ impl<const MULTIPLAYER: bool, const PLAYERS: usize> Game<MULTIPLAYER, PLAYERS> {
                     });
             } else {
                 // Stop if the action does not have a certain outcome
-                f(actions, game, false);
+                f(&actions[..actions.len() - 1], game, Some(action));
             }
             actions.pop();
         });
     }
 
-    pub fn visit_certain<F: FnMut(&[Action], &Self, bool)>(&self, f: &mut F) {
+    pub fn visit_certain<F: FnMut(&[Action], &Self, Option<Action>)>(&self, f: &mut F) {
         let mut actions = Vec::new();
         self.visit_certain_inner(&mut actions, f);
     }
@@ -982,7 +1015,9 @@ impl<const MULTIPLAYER: bool, const PLAYERS: usize> Game<MULTIPLAYER, PLAYERS> {
                 f(self.reverse(), 1.0);
             }
             Handcuffs => unreachable!(),
-            Adrenaline => {}
+            Adrenaline => {
+                f(self, 1.0);
+            }
         }
     }
 
@@ -1076,13 +1111,14 @@ impl<const MULTIPLAYER: bool, const PLAYERS: usize> Game<MULTIPLAYER, PLAYERS> {
             Remote => true,
             HandSaw => true,
             Handcuffs => unreachable!(),
-            Adrenaline => unreachable!(),
+            Adrenaline => true,
         }
     }
 
     fn is_item_action_certain(&self, known_shells: BitArray<u8>, action: ItemAction) -> bool {
         match action {
             ItemAction::UseSimple(item) => self.is_item_certain(known_shells, item),
+            ItemAction::StealSimple(_, Item::Adrenaline) => unreachable!(),
             ItemAction::StealSimple(_, item) => self.is_item_certain(known_shells, item),
             ItemAction::StealHandcuffs(_, _) => true,
             ItemAction::Handcuff(_) => true,
@@ -1242,12 +1278,13 @@ impl<const MULTIPLAYER: bool, const PLAYERS: usize> Game<MULTIPLAYER, PLAYERS> {
                         if self.players[turn as usize].known_shells.get(i) {
                             nothing_chance += chance;
                         } else {
-                            self.clone().visit_shell_perspective(i, chance, |shell_perm| {
-                                f(shell_perm.map(|game| {
-                                    let turn = game.turn;
-                                    game.reveal_round(turn, i)
-                                }))
-                            });
+                            self.clone()
+                                .visit_shell_perspective(i, chance, |shell_perm| {
+                                    f(shell_perm.map(|game| {
+                                        let turn = game.turn;
+                                        game.reveal_round(turn, i)
+                                    }))
+                                });
                         }
                     }
                     if nothing_chance > 0.0 {
@@ -1270,9 +1307,7 @@ impl<const MULTIPLAYER: bool, const PLAYERS: usize> Game<MULTIPLAYER, PLAYERS> {
             }
             Beer => {
                 self.visit_shell_perspective(0, 1.0, |shell_perm| {
-                    f(shell_perm.map(|game| {
-                        game.eject_round()
-                    }))
+                    f(shell_perm.map(|game| game.eject_round()))
                 });
                 None
             }
@@ -1292,7 +1327,9 @@ impl<const MULTIPLAYER: bool, const PLAYERS: usize> Game<MULTIPLAYER, PLAYERS> {
             }
             ItemAction::StealSimple(target, item) => {
                 let turn = self.turn;
-                self.remove_item(turn, Adrenaline).remove_item(target, item).visit_item_perspective(item, f)
+                self.remove_item(turn, Adrenaline)
+                    .remove_item(target, item)
+                    .visit_item_perspective(item, f)
             }
             _ => Some(self),
         }
@@ -1304,15 +1341,17 @@ impl<const MULTIPLAYER: bool, const PLAYERS: usize> Game<MULTIPLAYER, PLAYERS> {
         mut f: F,
     ) {
         match action {
-            Action::Item(item_action) => match self.visit_item_action_perspective(item_action, &mut f) {
-                None => (),
-                Some(game) => game.apply_action(action, |game, outcome_chance| {
-                    f(RevealPermutation {
-                        reveal: None,
-                        outcomes: smallvec![(game, [outcome_chance; PLAYERS])],
-                    })
-                }),
-            },
+            Action::Item(item_action) => {
+                match self.visit_item_action_perspective(item_action, &mut f) {
+                    None => (),
+                    Some(game) => game.apply_action(action, |game, outcome_chance| {
+                        f(RevealPermutation {
+                            reveal: None,
+                            outcomes: smallvec![(game, [outcome_chance; PLAYERS])],
+                        })
+                    }),
+                }
+            }
             Action::Shoot(target) => {
                 self.visit_shell_perspective(0, 1.0, |shell_perm| {
                     f(shell_perm.map(|game| {
@@ -1529,15 +1568,15 @@ pub const EPSILON: f32 = 0.0001;
 
 pub fn fmt_weight(weight: f32) -> String {
     if (weight - 1.0).abs() < EPSILON {
-        return "W".to_string();
+        return "WW".to_string();
     } else if weight.abs() < EPSILON {
-        return "L".to_string();
+        return "LL".to_string();
     }
-    // format!("{:.0}", weight * 100.0)
-    let weight = (weight - 0.5) * 20.0 * 2.0;
-    if weight > 0.0 {
-        format!("+{:.0}", weight)
-    } else {
-        format!("{:.0}", weight)
-    }
+    format!("{:0>2.0}", weight * 100.0)
+    // let weight = (weight - 0.5) * 20.0 * 2.0;
+    // if weight > 0.0 {
+    //     format!("+{:.0}", weight)
+    // } else {
+    //     format!("{:.0}", weight)
+    // }
 }

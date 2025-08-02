@@ -26,19 +26,19 @@ fn main() {
             Player {
                 health: 2,
                 items: ItemMap::new()
-                    .with(Item::BurnerPhone, 1)
-                    .with(Item::HandSaw, 1),
-                known_shells: BitArray(0b010),
+                .with(Item::Adrenaline, 1)
+                .with(Item::HandSaw, 1),
+                known_shells: BitArray(0b0),
             },
             Player {
                 health: 2,
-                items: ItemMap::new().with(Item::Adrenaline, 1),
-                known_shells: BitArray(0b010),
+                items: ItemMap::new(),
+                known_shells: BitArray(0b0),
             },
         ],
         handcuffed: BitArray(0b00),
-        live_shells: BitArray(0b001),
-        n_shells: 3,
+        live_shells: BitArray(0b1),
+        n_shells: 1,
         turn: 0,
         sawed_off: false,
         forward: true,
@@ -62,6 +62,7 @@ fn main() {
             "-b",
             "#0e0e0e",
             "-s",
+
             &n_links.div_ceil(25).clamp(1, 20).to_string(),
         ])
         .output()
@@ -107,7 +108,7 @@ struct Outcome<const PLAYERS: usize> {
 }
 
 struct Permutation<const PLAYERS: usize> {
-    shell: Option<(u8, bool)>,
+    reveal: Option<(u8, bool, Option<u8>)>,
     outcomes: SmallVec<[Outcome<PLAYERS>; 2]>,
 }
 
@@ -243,7 +244,6 @@ impl<const MULTIPLAYER: bool, const PLAYERS: usize> Tree<MULTIPLAYER, PLAYERS> {
         weights: &mut [f32; PLAYERS],
         max_depth: usize,
         chance: [f32; PLAYERS],
-        outcome_chance: f32,
     ) -> Outcome<PLAYERS> {
         let key = Key { game: game.clone() };
         let outcome = self.add_game(key);
@@ -251,7 +251,7 @@ impl<const MULTIPLAYER: bool, const PLAYERS: usize> Tree<MULTIPLAYER, PLAYERS> {
             // Use heuristics
             let heuristic_weights = Node::heuristic_weights(&self.nodes[outcome].key.game);
             for i in 0..PLAYERS {
-                weights[i] += heuristic_weights[i] * chance[i] * outcome_chance;
+                weights[i] += heuristic_weights[i] * chance[i];
             }
         } else {
             let outcome_decisions = self.get_decisions(outcome, max_depth - 1);
@@ -259,19 +259,19 @@ impl<const MULTIPLAYER: bool, const PLAYERS: usize> Tree<MULTIPLAYER, PLAYERS> {
                 None => {
                     // Game over, winner takes all
                     let winner = self.nodes[outcome].key.game.turn;
-                    weights[winner as usize] += outcome_chance * chance[winner as usize];
+                    weights[winner as usize] += chance[winner as usize];
                 }
                 Some(best) => {
                     // Assume the best decision will be taken
                     let best_decision = &outcome_decisions.decisions[best];
                     for j in 0..PLAYERS {
-                        weights[j] += best_decision.weights[j] * chance[j] * outcome_chance;
+                        weights[j] += best_decision.weights[j] * chance[j];
                     }
                 }
             }
         }
         Outcome {
-            chance: chance.map(|c| c * outcome_chance),
+            chance,
             node: outcome,
         }
     }
@@ -290,11 +290,16 @@ impl<const MULTIPLAYER: bool, const PLAYERS: usize> Tree<MULTIPLAYER, PLAYERS> {
         if let Some(action) = action {
             let mut outcomes = smallvec![];
             key.game.apply_action(action, |game, outcome_chance| {
-                outcomes.push(self.apply_outcome(game, weights, max_depth, chance, outcome_chance))
+                outcomes.push(self.apply_outcome(
+                    game,
+                    weights,
+                    max_depth,
+                    chance.map(|c| c * outcome_chance),
+                ))
             });
             outcomes
         } else {
-            smallvec![self.apply_outcome(key.game, weights, max_depth, chance, 1.0)]
+            smallvec![self.apply_outcome(key.game, weights, max_depth, chance)]
         }
     }
 
@@ -307,115 +312,43 @@ impl<const MULTIPLAYER: bool, const PLAYERS: usize> Tree<MULTIPLAYER, PLAYERS> {
         let mut seen: SmallVec<[(Game<MULTIPLAYER, PLAYERS>, Option<Action>); 8]> = smallvec![];
         game.visit_certain(&mut |actions: &[Action],
                                  game: &Game<MULTIPLAYER, PLAYERS>,
-                                 end_turn| {
-            let uncertain_action = (!end_turn).then(|| actions.last().unwrap().clone());
+                                 uncertain_action| {
+            eprintln!("visit_certain actions: {:?} uncertain_action: {:?}", actions, uncertain_action);
+            let game = game.clone();
             if seen.contains(&(game.clone(), uncertain_action)) {
                 return;
             }
             seen.push((game.clone(), uncertain_action));
             let mut weights = [0.0; PLAYERS];
             let mut permutations: SmallVec<[Permutation<PLAYERS>; 2]> = smallvec![];
-            let mut reveal_permutations: Vec<(Option<u8>, u8, f32)> = vec![];
-            // let all_known = game.all_known_shells();
-            if let Some(uncertain_action) = uncertain_action {
-                game.visit_action_reveal_chance(&uncertain_action, |_, player, shell, chance| {
-                    //if !all_known.get(shell) {
-                    reveal_permutations.push((player, shell, chance));
-                    //}
-                });
-            }
 
-            if uncertain_action == Some(Action::Item(ItemAction::UseSimple(Item::BurnerPhone))) {
-                eprintln!("========================");
-                eprintln!("{}", game);
-                eprintln!("{:?}", reveal_permutations);
-            }
+            let mut actions: SmallVec<[Action; 4]> = actions.iter().copied().collect();
 
-            if reveal_permutations.is_empty() {
-                // Just apply the action
-                let outcomes = self.apply_action(
-                    Key { game: game.clone() },
-                    uncertain_action,
-                    &mut weights,
-                    max_depth,
-                    [1.0; PLAYERS],
-                );
-                permutations.push(Permutation {
-                    shell: None,
-                    outcomes,
+            if let Some(action) = uncertain_action {
+                let original_live = game.live_shells;
+                game.visit_action_perspective(action, |permutation| {
+                    let mut outcomes = smallvec![];
+                    for (game, chance) in permutation.outcomes.into_iter() {
+                        outcomes.push(self.apply_outcome(game, &mut weights, max_depth, chance));
+                    }
+                    permutations.push(Permutation {
+                        reveal: permutation.reveal.map(|(shell, swap)| {
+                            (shell, original_live.get(shell) != swap.is_some(), swap)
+                        }),
+                        outcomes,
+                    });
                 });
+                actions.push(action);
             } else {
-                for (_, shell, chance) in reveal_permutations {
-                    let mut correct_chance = [0.0; PLAYERS];
-                    for i in 0..PLAYERS {
-                        correct_chance[i] =
-                            game.live_chance(shell, game.players[i].known_shells) * chance;
-                    }
-                    let (correct_chance, mut incorrect_chance) = if game.live_shells.get(shell) {
-                        (correct_chance, correct_chance.map(|c| chance - c))
-                    } else {
-                        (correct_chance.map(|c| chance - c), correct_chance)
-                    };
-                    if uncertain_action
-                        == Some(Action::Item(ItemAction::UseSimple(Item::BurnerPhone)))
-                    {
-                        eprintln!("shell: {:?}", shell);
-                        eprintln!("correct_chance: {:?}", correct_chance);
-                        eprintln!("incorrect_chance: {:?}", incorrect_chance);
-                    }
-                    let unflipped_outcomes = self.apply_action(
-                        Key { game: game.clone() },
-                        uncertain_action,
+                permutations.push(Permutation {
+                    reveal: None,
+                    outcomes: smallvec![self.apply_outcome(
+                        game.clone(),
                         &mut weights,
                         max_depth,
-                        correct_chance,
-                    );
-                    let is_live = game.live_shells.get(shell);
-                    permutations.push(Permutation {
-                        shell: Some((shell, is_live)),
-                        outcomes: unflipped_outcomes,
-                    });
-                    if incorrect_chance.iter().all(|c| c.abs() < EPSILON) {
-                        continue;
-                    }
-                    let all_swaps = game.all_player_swaps(shell);
-                    let cover_flips = BitArray(min_cover(
-                        all_swaps
-                            .iter()
-                            .map(|e| e.0)
-                            .filter(|e| *e != 0)
-                            .collect::<Vec<_>>()
-                            .as_slice(),
-                    ));
-                    for i in 0..game.n_shells {
-                        if !cover_flips.get(i) {
-                            continue;
-                        }
-                        let mut incorrect_chance_copy = incorrect_chance.clone();
-                        for j in 0..PLAYERS {
-                            if all_swaps[j].get(i) {
-                                incorrect_chance[j] = 0.0;
-                            } else {
-                                incorrect_chance_copy[j] = 0.0;
-                            }
-                        }
-                        let game = game.clone().flip(shell).flip(i).clone();
-                        let flipped_outcomes = self.apply_action(
-                            Key { game },
-                            uncertain_action,
-                            &mut weights,
-                            max_depth,
-                            incorrect_chance_copy,
-                        );
-                        permutations.push(Permutation {
-                            shell: Some((shell, !is_live)),
-                            outcomes: flipped_outcomes,
-                        });
-                    }
-                }
-                if permutations.len() == 1 {
-                    permutations[0].shell = None;
-                }
+                        [1.0; PLAYERS]
+                    )],
+                });
             }
 
             let weight = weights[turn as usize];
@@ -423,14 +356,12 @@ impl<const MULTIPLAYER: bool, const PLAYERS: usize> Tree<MULTIPLAYER, PLAYERS> {
                 best_weight = weight;
                 best = Some(decisions.len());
             }
+
             decisions.push(Decision {
-                actions: actions.into(),
+                actions,
                 weights,
-                permutations: permutations
-                    .into_iter()
-                    .filter(|p| p.outcomes.len() > 0)
-                    .collect(),
-            })
+                permutations,
+            });
         });
         Decisions {
             decisions,
@@ -505,7 +436,6 @@ impl<const MULTIPLAYER: bool, const PLAYERS: usize> Tree<MULTIPLAYER, PLAYERS> {
             if node.decisions.is_some() {
                 for (decision_i, decision) in node
                     .decisions
-                    .as_ref()
                     .as_ref()
                     .map_or(vec![], |e| e.decisions.iter().enumerate().collect())
                 {
@@ -672,7 +602,7 @@ config:
                             }
                         }
 
-                        if let Some((shell, is_live)) = permutation.shell {
+                        if let Some((shell, is_live, swap)) = permutation.reveal {
                             let ps = format!(
                                 "{} {}",
                                 if shell == 0 {
