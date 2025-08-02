@@ -12,60 +12,284 @@ config:
     padding: 5
 ---
 graph TD;
-  n0["|?&nbsp;&nbsp;|&nbsp;<br>>&nbsp;♥♥&nbsp;|&nbsp;&nbsp;&nbsp;|&nbsp;Cig&nbsp;Saw&nbsp;<br>&nbsp;&nbsp;♥♥&nbsp;|&nbsp;&nbsp;&nbsp;|&nbsp;Adr&nbsp;<br>"]
+  n0["|?.&nbsp;|&nbsp;<br>>&nbsp;♥♥&nbsp;|&nbsp;.&nbsp;|&nbsp;Phn&nbsp;Saw&nbsp;<br>&nbsp;&nbsp;♥♥&nbsp;|&nbsp;.&nbsp;|&nbsp;Adr&nbsp;<br>"]
   style n0 text-align:left,stroke:green;
-  d0-7("+3 use Saw<br>shoot")
-  n0 --> d0-7
-  style d0-7 stroke: green
+  d0-0("+13 Phn")
+  n0 --> d0-0
+  style d0-0 stroke: green
   linkStyle 0 stroke: green;
-  p0-7-0(" live")
-  d0-7 --> p0-7-0
-  p0-7-0 -->|"33%"| n179
-  p0-7-1(" blank")
-  d0-7 --> p0-7-1
-  p0-7-1 -->|"67%"| n180
-  h0("+3 shoot self<br>+3 use Cig shoot self<br>+3 use Cig use Saw shoot<br>+3 use Saw use Cig shoot<br>-7 use Cig shoot<br>-7 use Cig use Saw shoot self<br>-7 use Saw use Cig shoot self<br>-7 use Saw shoot self<br>-9 shoot")
+  p0-0-0("1  blank")
+  d0-0 --> p0-0-0
+  p0-0-0 -->|"25%"| n1
+  p0-0-0 -->|"25%"| n62
+  p0-0-1("2  blank")
+  d0-0 --> p0-0-1
+  p0-0-1 -->|"12%"| n123
+  p0-0-1 -->|"12%"| n184
+  p0-0-2("2  live")
+  d0-0 --> p0-0-2
+  p0-0-2 -->|"12%"| n245
+  p0-0-2 -->|"12%"| n306
+  h0("+11 Saw Phn<br>+7 !s<br>+7 Saw !<br>-8 !<br>-8 Saw !s")
   n0 --> h0
   style h0 text-align:left
-  n179["|..|&nbsp;<br>>&nbsp;♥♥&nbsp;|..|&nbsp;Cig&nbsp;<br>X&nbsp;&nbsp;&nbsp;&nbsp;<br>"]
-  style n179 text-align:left,stroke:green;
-  style n179 fill:#1f9020
-  n180["|?&nbsp;|&nbsp;<br>&nbsp;&nbsp;♥♥&nbsp;|&nbsp;&nbsp;|&nbsp;Cig&nbsp;<br>>&nbsp;♥♥&nbsp;|&nbsp;&nbsp;|&nbsp;Adr&nbsp;<br>"]
-  style n180 text-align:left,stroke:red;
-  d180-0("+6 steal Cig<br>shoot")
-  n180 --> d180-0
-  style d180-0 stroke: red
-  linkStyle 6 stroke: red;
-  p180-0-0(" live")
-  d180-0 --> p180-0-0
-  p180-0-0 -->|"50%"| n181
-  p180-0-1(" blank")
-  d180-0 --> p180-0-1
-  p180-0-1 -->|"50%"| n184
-  h180("+3 shoot<br>+0 shoot self<br>0 steal Cig shoot self")
-  n180 --> h180
-  style h180 text-align:left
-  n181["|.|&nbsp;<br>>&nbsp;♥&nbsp;&nbsp;|.|&nbsp;<br>&nbsp;&nbsp;♥♥&nbsp;|.|&nbsp;<br>"]
-  style n181 text-align:left,stroke:green;
-  d181-0("-6 shoot self")
-  n181 --> d181-0
-  style d181-0 stroke: green
-  linkStyle 12 stroke: green;
-  d181-0 --> n182
-  h181("-6 shoot")
-  n181 --> h181
-  style h181 text-align:left
-  n182["||&nbsp;<br>>&nbsp;♥&nbsp;&nbsp;<br>&nbsp;&nbsp;♥♥&nbsp;<br>-6,+6"]
-  style n182 text-align:left,stroke:green;
-  n184["|#|&nbsp;<br>>&nbsp;♥♥&nbsp;|#|&nbsp;<br>&nbsp;&nbsp;♥♥&nbsp;|#|&nbsp;<br>"]
+  n1["|?.&nbsp;|&nbsp;<br>>&nbsp;♥♥&nbsp;|&nbsp;.&nbsp;|&nbsp;Saw&nbsp;<br>&nbsp;&nbsp;♥♥&nbsp;|&nbsp;.&nbsp;|&nbsp;Adr&nbsp;<br>"]
+  style n1 text-align:left,stroke:green;
+  d1-2("+7 !s")
+  n1 --> d1-2
+  style d1-2 stroke: green
+  linkStyle 11 stroke: green;
+  p1-2-0(" live")
+  d1-2 --> p1-2-0
+  p1-2-0 -->|"50%"| n16
+  p1-2-1(" blank")
+  d1-2 --> p1-2-1
+  p1-2-1 -->|"50%"| n24
+  h1("+7 Saw !<br>-8 !<br>-8 Saw !s")
+  n1 --> h1
+  style h1 text-align:left
+  n16["|..|&nbsp;<br>&nbsp;&nbsp;♥&nbsp;&nbsp;|..|&nbsp;Saw&nbsp;<br>>&nbsp;♥♥&nbsp;|..|&nbsp;Adr&nbsp;<br>"]
+  style n16 text-align:left,stroke:red;
+  d16-2("+6 !")
+  n16 --> d16-2
+  style d16-2 stroke: red
+  linkStyle 17 stroke: red;
+  d16-2 --> n20
+  h16("+6 !s !<br>+6 Adr Saw !<br>+6 Adr Saw !s !")
+  n16 --> h16
+  style h16 text-align:left
+  n20["|.|&nbsp;<br>>&nbsp;♥&nbsp;&nbsp;|.|&nbsp;Saw&nbsp;<br>&nbsp;&nbsp;♥♥&nbsp;|.|&nbsp;Adr&nbsp;<br>"]
+  style n20 text-align:left,stroke:green;
+  d20-1("-6 !s")
+  n20 --> d20-1
+  style d20-1 stroke: green
+  linkStyle 20 stroke: green;
+  d20-1 --> n22
+  h20("-7 Saw !s")
+  n20 --> h20
+  style h20 text-align:left
+  n22["||&nbsp;<br>>&nbsp;♥&nbsp;&nbsp;Saw&nbsp;<br>&nbsp;&nbsp;♥♥&nbsp;Adr&nbsp;<br>-6,+6"]
+  style n22 text-align:left,stroke:green;
+  n24["|.#|&nbsp;<br>>&nbsp;♥♥&nbsp;|.#|&nbsp;Saw&nbsp;<br>&nbsp;&nbsp;♥♥&nbsp;|.#|&nbsp;Adr&nbsp;<br>"]
+  style n24 text-align:left,stroke:green;
+  d24-4("W !s Saw !")
+  n24 --> d24-4
+  style d24-4 stroke: green
+  linkStyle 23 stroke: green;
+  d24-4 --> n31
+  h24("+4 !s !<br>+4 Saw !s !<br>-6 !s !s<br>-7 Saw !s !s<br>-7 Saw !<br>L !s Saw !s<br>L !")
+  n24 --> h24
+  style h24 text-align:left
+  n31["||&nbsp;<br>>&nbsp;♥♥&nbsp;<br>X&nbsp;&nbsp;&nbsp;&nbsp;<br>"]
+  style n31 text-align:left,stroke:green;
+  style n31 fill:#1f9020
+  n62["|?..|&nbsp;<br>>&nbsp;♥♥&nbsp;|&nbsp;..|&nbsp;Saw&nbsp;<br>&nbsp;&nbsp;♥♥&nbsp;|&nbsp;.&nbsp;|&nbsp;Adr&nbsp;<br>"]
+  style n62 text-align:left,stroke:green;
+  d62-1("W Saw !")
+  n62 --> d62-1
+  style d62-1 stroke: green
+  linkStyle 26 stroke: green;
+  p62-1-0(" live")
+  d62-1 --> p62-1-0
+  p62-1-0 -->|"100%,50%"| n70
+  p62-1-1(" blank")
+  d62-1 --> p62-1-1
+  p62-1-1 -->|"0%,50%"| n71
+  h62("+4 !<br>-6 !s<br>L Saw !s")
+  n62 --> h62
+  style h62 text-align:left
+  n70["|..|&nbsp;<br>>&nbsp;♥♥&nbsp;|..|&nbsp;<br>X&nbsp;&nbsp;&nbsp;&nbsp;<br>"]
+  style n70 text-align:left,stroke:green;
+  style n70 fill:#1f9020
+  n71["|.#|&nbsp;<br>&nbsp;&nbsp;♥♥&nbsp;|.#|&nbsp;<br>>&nbsp;♥♥&nbsp;|.#|&nbsp;Adr&nbsp;<br>"]
+  style n71 text-align:left,stroke:red;
+  d71-1("+7 !s !")
+  n71 --> d71-1
+  style d71-1 stroke: red
+  linkStyle 32 stroke: red;
+  d71-1 --> n75
+  h71("-4 !<br>-4 !s !s")
+  n71 --> h71
+  style h71 text-align:left
+  n75["||&nbsp;<br>>&nbsp;♥&nbsp;&nbsp;<br>&nbsp;&nbsp;♥♥&nbsp;Adr&nbsp;<br>-7,+7"]
+  style n75 text-align:left,stroke:green;
+  n123["|?.&nbsp;|&nbsp;<br>>&nbsp;♥♥&nbsp;|&nbsp;.&nbsp;|&nbsp;Saw&nbsp;<br>&nbsp;&nbsp;♥♥&nbsp;|&nbsp;.&nbsp;|&nbsp;Adr&nbsp;<br>"]
+  style n123 text-align:left,stroke:green;
+  d123-2("+7 !s")
+  n123 --> d123-2
+  style d123-2 stroke: green
+  linkStyle 35 stroke: green;
+  p123-2-0(" live")
+  d123-2 --> p123-2-0
+  p123-2-0 -->|"50%"| n138
+  p123-2-1(" blank")
+  d123-2 --> p123-2-1
+  p123-2-1 -->|"50%"| n146
+  h123("+7 Saw !<br>-8 !<br>-8 Saw !s")
+  n123 --> h123
+  style h123 text-align:left
+  n138["|..|&nbsp;<br>&nbsp;&nbsp;♥&nbsp;&nbsp;|..|&nbsp;Saw&nbsp;<br>>&nbsp;♥♥&nbsp;|..|&nbsp;Adr&nbsp;<br>"]
+  style n138 text-align:left,stroke:red;
+  d138-2("+6 !")
+  n138 --> d138-2
+  style d138-2 stroke: red
+  linkStyle 41 stroke: red;
+  d138-2 --> n142
+  h138("+6 !s !<br>+6 Adr Saw !<br>+6 Adr Saw !s !")
+  n138 --> h138
+  style h138 text-align:left
+  n142["|.|&nbsp;<br>>&nbsp;♥&nbsp;&nbsp;|.|&nbsp;Saw&nbsp;<br>&nbsp;&nbsp;♥♥&nbsp;|.|&nbsp;Adr&nbsp;<br>"]
+  style n142 text-align:left,stroke:green;
+  d142-1("-6 !s")
+  n142 --> d142-1
+  style d142-1 stroke: green
+  linkStyle 44 stroke: green;
+  d142-1 --> n144
+  h142("-7 Saw !s")
+  n142 --> h142
+  style h142 text-align:left
+  n144["||&nbsp;<br>>&nbsp;♥&nbsp;&nbsp;Saw&nbsp;<br>&nbsp;&nbsp;♥♥&nbsp;Adr&nbsp;<br>-6,+6"]
+  style n144 text-align:left,stroke:green;
+  n146["|.#|&nbsp;<br>>&nbsp;♥♥&nbsp;|.#|&nbsp;Saw&nbsp;<br>&nbsp;&nbsp;♥♥&nbsp;|.#|&nbsp;Adr&nbsp;<br>"]
+  style n146 text-align:left,stroke:green;
+  d146-4("W !s Saw !")
+  n146 --> d146-4
+  style d146-4 stroke: green
+  linkStyle 47 stroke: green;
+  d146-4 --> n153
+  h146("+4 !s !<br>+4 Saw !s !<br>-6 !s !s<br>-7 Saw !s !s<br>-7 Saw !<br>L !s Saw !s<br>L !")
+  n146 --> h146
+  style h146 text-align:left
+  n153["||&nbsp;<br>>&nbsp;♥♥&nbsp;<br>X&nbsp;&nbsp;&nbsp;&nbsp;<br>"]
+  style n153 text-align:left,stroke:green;
+  style n153 fill:#1f9020
+  n184["|?..|&nbsp;<br>>&nbsp;♥♥&nbsp;|&nbsp;..|&nbsp;Saw&nbsp;<br>&nbsp;&nbsp;♥♥&nbsp;|&nbsp;.&nbsp;|&nbsp;Adr&nbsp;<br>"]
   style n184 text-align:left,stroke:green;
-  d184-0("-6 shoot self")
-  n184 --> d184-0
-  style d184-0 stroke: green
-  linkStyle 15 stroke: green;
-  d184-0 --> n185
-  h184("+6 shoot")
+  d184-1("W Saw !")
+  n184 --> d184-1
+  style d184-1 stroke: green
+  linkStyle 50 stroke: green;
+  p184-1-0(" live")
+  d184-1 --> p184-1-0
+  p184-1-0 -->|"100%,50%"| n192
+  p184-1-1(" blank")
+  d184-1 --> p184-1-1
+  p184-1-1 -->|"0%,50%"| n193
+  h184("+4 !<br>-6 !s<br>L Saw !s")
   n184 --> h184
   style h184 text-align:left
-  n185["||&nbsp;<br>>&nbsp;♥&nbsp;&nbsp;<br>&nbsp;&nbsp;♥♥&nbsp;<br>-6,+6"]
-  style n185 text-align:left,stroke:green;
+  n192["|..|&nbsp;<br>>&nbsp;♥♥&nbsp;|..|&nbsp;<br>X&nbsp;&nbsp;&nbsp;&nbsp;<br>"]
+  style n192 text-align:left,stroke:green;
+  style n192 fill:#1f9020
+  n193["|.#|&nbsp;<br>&nbsp;&nbsp;♥♥&nbsp;|.#|&nbsp;<br>>&nbsp;♥♥&nbsp;|.#|&nbsp;Adr&nbsp;<br>"]
+  style n193 text-align:left,stroke:red;
+  d193-1("+7 !s !")
+  n193 --> d193-1
+  style d193-1 stroke: red
+  linkStyle 56 stroke: red;
+  d193-1 --> n197
+  h193("-4 !<br>-4 !s !s")
+  n193 --> h193
+  style h193 text-align:left
+  n197["||&nbsp;<br>>&nbsp;♥&nbsp;&nbsp;<br>&nbsp;&nbsp;♥♥&nbsp;Adr&nbsp;<br>-7,+7"]
+  style n197 text-align:left,stroke:green;
+  n245["|&nbsp;.?|&nbsp;<br>>&nbsp;♥♥&nbsp;|&nbsp;.&nbsp;|&nbsp;Saw&nbsp;<br>&nbsp;&nbsp;♥♥&nbsp;|&nbsp;.&nbsp;|&nbsp;Adr&nbsp;<br>"]
+  style n245 text-align:left,stroke:green;
+  d245-2("+7 !s")
+  n245 --> d245-2
+  style d245-2 stroke: green
+  linkStyle 59 stroke: green;
+  p245-2-0(" blank")
+  d245-2 --> p245-2-0
+  p245-2-0 -->|"50%"| n260
+  p245-2-1(" live")
+  d245-2 --> p245-2-1
+  p245-2-1 -->|"50%"| n275
+  h245("+7 Saw !<br>-8 !<br>-8 Saw !s")
+  n245 --> h245
+  style h245 text-align:left
+  n260["|.#|&nbsp;<br>>&nbsp;♥♥&nbsp;|.#|&nbsp;Saw&nbsp;<br>&nbsp;&nbsp;♥♥&nbsp;|.#|&nbsp;Adr&nbsp;<br>"]
+  style n260 text-align:left,stroke:green;
+  d260-4("W !s Saw !")
+  n260 --> d260-4
+  style d260-4 stroke: green
+  linkStyle 65 stroke: green;
+  d260-4 --> n267
+  h260("+4 !s !<br>+4 Saw !s !<br>-6 !s !s<br>-7 Saw !s !s<br>-7 Saw !<br>L !s Saw !s<br>L !")
+  n260 --> h260
+  style h260 text-align:left
+  n267["||&nbsp;<br>>&nbsp;♥♥&nbsp;<br>X&nbsp;&nbsp;&nbsp;&nbsp;<br>"]
+  style n267 text-align:left,stroke:green;
+  style n267 fill:#1f9020
+  n275["|..|&nbsp;<br>&nbsp;&nbsp;♥&nbsp;&nbsp;|..|&nbsp;Saw&nbsp;<br>>&nbsp;♥♥&nbsp;|..|&nbsp;Adr&nbsp;<br>"]
+  style n275 text-align:left,stroke:red;
+  d275-2("+6 !")
+  n275 --> d275-2
+  style d275-2 stroke: red
+  linkStyle 68 stroke: red;
+  d275-2 --> n279
+  h275("+6 !s !<br>+6 Adr Saw !<br>+6 Adr Saw !s !")
+  n275 --> h275
+  style h275 text-align:left
+  n279["|.|&nbsp;<br>>&nbsp;♥&nbsp;&nbsp;|.|&nbsp;Saw&nbsp;<br>&nbsp;&nbsp;♥♥&nbsp;|.|&nbsp;Adr&nbsp;<br>"]
+  style n279 text-align:left,stroke:green;
+  d279-1("-6 !s")
+  n279 --> d279-1
+  style d279-1 stroke: green
+  linkStyle 71 stroke: green;
+  d279-1 --> n281
+  h279("-7 Saw !s")
+  n279 --> h279
+  style h279 text-align:left
+  n281["||&nbsp;<br>>&nbsp;♥&nbsp;&nbsp;Saw&nbsp;<br>&nbsp;&nbsp;♥♥&nbsp;Adr&nbsp;<br>-6,+6"]
+  style n281 text-align:left,stroke:green;
+  n306["|&nbsp;.#|&nbsp;<br>>&nbsp;♥♥&nbsp;|&nbsp;.#|&nbsp;Saw&nbsp;<br>&nbsp;&nbsp;♥♥&nbsp;|&nbsp;.&nbsp;|&nbsp;Adr&nbsp;<br>"]
+  style n306 text-align:left,stroke:green;
+  d306-2("W !s")
+  n306 --> d306-2
+  style d306-2 stroke: green
+  linkStyle 74 stroke: green;
+  p306-2-0(" blank")
+  d306-2 --> p306-2-0
+  p306-2-0 -->|"100%,50%"| n321
+  p306-2-1(" live")
+  d306-2 --> p306-2-1
+  p306-2-1 -->|"0%,50%"| n336
+  h306("+4 Saw !s<br>-7 Saw !<br>L !")
+  n306 --> h306
+  style h306 text-align:left
+  n321["|.#|&nbsp;<br>>&nbsp;♥♥&nbsp;|.#|&nbsp;Saw&nbsp;<br>&nbsp;&nbsp;♥♥&nbsp;|.#|&nbsp;Adr&nbsp;<br>"]
+  style n321 text-align:left,stroke:green;
+  d321-4("W !s Saw !")
+  n321 --> d321-4
+  style d321-4 stroke: green
+  linkStyle 80 stroke: green;
+  d321-4 --> n328
+  h321("+4 !s !<br>+4 Saw !s !<br>-6 !s !s<br>-7 Saw !s !s<br>-7 Saw !<br>L !s Saw !s<br>L !")
+  n321 --> h321
+  style h321 text-align:left
+  n328["||&nbsp;<br>>&nbsp;♥♥&nbsp;<br>X&nbsp;&nbsp;&nbsp;&nbsp;<br>"]
+  style n328 text-align:left,stroke:green;
+  style n328 fill:#1f9020
+  n336["|..|&nbsp;<br>&nbsp;&nbsp;♥&nbsp;&nbsp;|..|&nbsp;Saw&nbsp;<br>>&nbsp;♥♥&nbsp;|..|&nbsp;Adr&nbsp;<br>"]
+  style n336 text-align:left,stroke:red;
+  d336-2("+6 !")
+  n336 --> d336-2
+  style d336-2 stroke: red
+  linkStyle 83 stroke: red;
+  d336-2 --> n340
+  h336("+6 !s !<br>+6 Adr Saw !<br>+6 Adr Saw !s !")
+  n336 --> h336
+  style h336 text-align:left
+  n340["|.|&nbsp;<br>>&nbsp;♥&nbsp;&nbsp;|.|&nbsp;Saw&nbsp;<br>&nbsp;&nbsp;♥♥&nbsp;|.|&nbsp;Adr&nbsp;<br>"]
+  style n340 text-align:left,stroke:green;
+  d340-1("-6 !s")
+  n340 --> d340-1
+  style d340-1 stroke: green
+  linkStyle 86 stroke: green;
+  d340-1 --> n342
+  h340("-7 Saw !s")
+  n340 --> h340
+  style h340 text-align:left
+  n342["||&nbsp;<br>>&nbsp;♥&nbsp;&nbsp;Saw&nbsp;<br>&nbsp;&nbsp;♥♥&nbsp;Adr&nbsp;<br>-6,+6"]
+  style n342 text-align:left,stroke:green;

@@ -1,7 +1,10 @@
 #![allow(dead_code)]
 #![allow(unused_imports)]
 
-use crate::state::{fmt_percent, fmt_weight, gen_lut, min_cover, Action, BitArray, Game, GameConfig, Gosper, Item, ItemAction, ItemMap, KnownChance, Player, EPSILON};
+use crate::state::{
+    fmt_percent, fmt_weight, gen_lut, min_cover, Action, BitArray, Game, GameConfig, Gosper, Item,
+    ItemAction, ItemMap, KnownChance, Player, EPSILON,
+};
 use slab::Slab;
 use smallvec::{smallvec, SmallVec};
 use std::collections::{HashMap, HashSet};
@@ -22,13 +25,15 @@ fn main() {
         players: [
             Player {
                 health: 2,
-                items: ItemMap::new().with(Item::Cigarette, 1).with(Item::HandSaw, 1),
-                known_shells: BitArray(0b000),
+                items: ItemMap::new()
+                    .with(Item::BurnerPhone, 1)
+                    .with(Item::HandSaw, 1),
+                known_shells: BitArray(0b010),
             },
             Player {
                 health: 2,
                 items: ItemMap::new().with(Item::Adrenaline, 1),
-                known_shells: BitArray(0b000),
+                known_shells: BitArray(0b010),
             },
         ],
         handcuffed: BitArray(0b00),
@@ -142,10 +147,17 @@ impl<const MULTIPLAYER: bool, const PLAYERS: usize> Node<MULTIPLAYER, PLAYERS> {
     fn player_points(game: &Game<MULTIPLAYER, PLAYERS>, player_index: u8) -> i32 {
         let mut points: i32 = 0;
         let player = &game.players[player_index as usize];
+        if player.health == 0 {
+            return 0;
+        }
         points += (player.health as i32) * 16;
         let mut n_items = 0;
         for item in Item::ALL {
-            n_items += *player.items.get(item) as i32;
+            match item {
+                Item::MagnifyingGlass => n_items += *player.items.get(item) as i32 * 2,
+                Item::Adrenaline | Item::Handcuffs => n_items += *player.items.get(item) as i32 * 4,
+                _ => n_items += *player.items.get(item) as i32 * 1,
+            }
         }
         if game.n_shells == 0 {
             n_items = (n_items + 3).min(8);
@@ -156,7 +168,7 @@ impl<const MULTIPLAYER: bool, const PLAYERS: usize> Node<MULTIPLAYER, PLAYERS> {
             points = points.saturating_sub(6);
         }
         points
-    } 
+    }
 
     fn all_player_points(game: &Game<MULTIPLAYER, PLAYERS>) -> ([i32; PLAYERS], i32) {
         let mut points = [0; PLAYERS];
@@ -180,14 +192,10 @@ impl<const MULTIPLAYER: bool, const PLAYERS: usize> Node<MULTIPLAYER, PLAYERS> {
 }
 
 impl<const MULTIPLAYER: bool, const PLAYERS: usize> Tree<MULTIPLAYER, PLAYERS> {
-    pub fn new(
-        base_game: &Game<MULTIPLAYER, PLAYERS>,
-    ) -> Self {
+    pub fn new(base_game: &Game<MULTIPLAYER, PLAYERS>) -> Self {
         let base_game = base_game.clone().normalize_known();
         let mut nodes = Slab::new();
-        let key = Key {
-            game: base_game,
-        };
+        let key = Key { game: base_game };
         let root = nodes.insert(Node {
             key: key.clone(),
             decisions: None,
@@ -237,9 +245,7 @@ impl<const MULTIPLAYER: bool, const PLAYERS: usize> Tree<MULTIPLAYER, PLAYERS> {
         chance: [f32; PLAYERS],
         outcome_chance: f32,
     ) -> Outcome<PLAYERS> {
-        let key = Key {
-            game: game.clone(),
-        };
+        let key = Key { game: game.clone() };
         let outcome = self.add_game(key);
         if max_depth == 0 || game.round_over() {
             // Use heuristics
@@ -273,23 +279,23 @@ impl<const MULTIPLAYER: bool, const PLAYERS: usize> Tree<MULTIPLAYER, PLAYERS> {
     fn apply_action(
         &mut self,
         key: Key<MULTIPLAYER, PLAYERS>,
-        action: Action,
+        action: Option<Action>,
         weights: &mut [f32; PLAYERS],
         max_depth: usize,
         chance: [f32; PLAYERS],
     ) -> SmallVec<[Outcome<PLAYERS>; 2]> {
-        let mut outcomes = smallvec![];
-        key.game
-            .apply_action(action, |game, outcome_chance| {
-                outcomes.push(self.apply_outcome(
-                    game,
-                    weights,
-                    max_depth,
-                    chance,
-                    outcome_chance,
-                ))
+        if chance == [0.0; PLAYERS] {
+            return smallvec![];
+        }
+        if let Some(action) = action {
+            let mut outcomes = smallvec![];
+            key.game.apply_action(action, |game, outcome_chance| {
+                outcomes.push(self.apply_outcome(game, weights, max_depth, chance, outcome_chance))
             });
-        outcomes
+            outcomes
+        } else {
+            smallvec![self.apply_outcome(key.game, weights, max_depth, chance, 1.0)]
+        }
     }
 
     pub fn compute_decisions(&mut self, node: usize, max_depth: usize) -> Decisions<PLAYERS> {
@@ -298,49 +304,38 @@ impl<const MULTIPLAYER: bool, const PLAYERS: usize> Tree<MULTIPLAYER, PLAYERS> {
         let mut decisions = SmallVec::new();
         let mut best_weight = f32::MIN;
         let mut best = None;
-        game.visit_certain(&mut |actions: &[Action], game: &Game<MULTIPLAYER, PLAYERS>, end_turn| {
-            let mut weights = [0.0; PLAYERS];
-            let mut permutations: SmallVec<[Permutation<PLAYERS>; 2]> = smallvec![];
-            if end_turn {
-                let weight = weights[turn as usize];
-                if weight > best_weight {
-                    best_weight = weight;
-                    best = Some(decisions.len());
-                }
-                let outcome = self.apply_outcome(
-                    game.clone(),
-                    &mut weights,
-                    max_depth,
-                    [1.0; PLAYERS],
-                    1.0,
-                );
-                permutations.push(Permutation {
-                    shell: None,
-                    outcomes: smallvec![outcome],
-                });
-                decisions.push(Decision {
-                    actions: actions.into(),
-                    weights,
-                    permutations,
-                });
+        let mut seen: SmallVec<[(Game<MULTIPLAYER, PLAYERS>, Option<Action>); 8]> = smallvec![];
+        game.visit_certain(&mut |actions: &[Action],
+                                 game: &Game<MULTIPLAYER, PLAYERS>,
+                                 end_turn| {
+            let uncertain_action = (!end_turn).then(|| actions.last().unwrap().clone());
+            if seen.contains(&(game.clone(), uncertain_action)) {
                 return;
             }
-            let action = *actions.last().unwrap();
+            seen.push((game.clone(), uncertain_action));
+            let mut weights = [0.0; PLAYERS];
+            let mut permutations: SmallVec<[Permutation<PLAYERS>; 2]> = smallvec![];
             let mut reveal_permutations: Vec<(Option<u8>, u8, f32)> = vec![];
-            let all_known = game.all_known_shells();
-            game.visit_action_reveal_chance(actions.last().as_ref().unwrap(), |_, player, shell, chance| {
-                if !all_known.get(shell) {
+            // let all_known = game.all_known_shells();
+            if let Some(uncertain_action) = uncertain_action {
+                game.visit_action_reveal_chance(&uncertain_action, |_, player, shell, chance| {
+                    //if !all_known.get(shell) {
                     reveal_permutations.push((player, shell, chance));
-                }
-            });
+                    //}
+                });
+            }
+
+            if uncertain_action == Some(Action::Item(ItemAction::UseSimple(Item::BurnerPhone))) {
+                eprintln!("========================");
+                eprintln!("{}", game);
+                eprintln!("{:?}", reveal_permutations);
+            }
 
             if reveal_permutations.is_empty() {
                 // Just apply the action
                 let outcomes = self.apply_action(
-                    Key {
-                        game: game.clone(),
-                    },
-                    action,
+                    Key { game: game.clone() },
+                    uncertain_action,
                     &mut weights,
                     max_depth,
                     [1.0; PLAYERS],
@@ -357,15 +352,20 @@ impl<const MULTIPLAYER: bool, const PLAYERS: usize> Tree<MULTIPLAYER, PLAYERS> {
                             game.live_chance(shell, game.players[i].known_shells) * chance;
                     }
                     let (correct_chance, mut incorrect_chance) = if game.live_shells.get(shell) {
-                        (correct_chance, correct_chance.map(|c| 1.0 - c))
+                        (correct_chance, correct_chance.map(|c| chance - c))
                     } else {
-                        (correct_chance.map(|c| 1.0 - c), correct_chance)
+                        (correct_chance.map(|c| chance - c), correct_chance)
                     };
+                    if uncertain_action
+                        == Some(Action::Item(ItemAction::UseSimple(Item::BurnerPhone)))
+                    {
+                        eprintln!("shell: {:?}", shell);
+                        eprintln!("correct_chance: {:?}", correct_chance);
+                        eprintln!("incorrect_chance: {:?}", incorrect_chance);
+                    }
                     let unflipped_outcomes = self.apply_action(
-                        Key {
-                            game: game.clone(),
-                        },
-                        action,
+                        Key { game: game.clone() },
+                        uncertain_action,
                         &mut weights,
                         max_depth,
                         correct_chance,
@@ -375,42 +375,46 @@ impl<const MULTIPLAYER: bool, const PLAYERS: usize> Tree<MULTIPLAYER, PLAYERS> {
                         shell: Some((shell, is_live)),
                         outcomes: unflipped_outcomes,
                     });
-                    if correct_chance.iter().any(|c| *c < 1.0) {
-                        let all_swaps = game.all_player_swaps(shell);
-                        let cover_flips = BitArray(min_cover(
-                            all_swaps.iter().map(|e| e.0).filter(|e| *e != 0).collect::<Vec<_>>().as_slice()
-                        ));
-                        for i in 0..game.n_shells {
-                            if !cover_flips.get(i) {
-                                continue;
-                            }
-                            let mut incorrect_chance_copy = incorrect_chance.clone();
-                            for j in 0..PLAYERS {
-                                if all_swaps[j].get(i) {
-                                    incorrect_chance[j] = 0.0;
-                                } else {
-                                    incorrect_chance_copy[j] = 0.0;
-                                }
-                            }
-                            let game = game.clone().flip(shell).flip(i).clone();
-                            let flipped_outcomes = self.apply_action(
-                                Key {
-                                    game,
-                                },
-                                action,
-                                &mut weights,
-                                max_depth,
-                                incorrect_chance_copy,
-                            );
-                            permutations.push(Permutation {
-                                shell: Some((shell, !is_live)),
-                                outcomes: flipped_outcomes,
-                            });
+                    if incorrect_chance.iter().all(|c| c.abs() < EPSILON) {
+                        continue;
+                    }
+                    let all_swaps = game.all_player_swaps(shell);
+                    let cover_flips = BitArray(min_cover(
+                        all_swaps
+                            .iter()
+                            .map(|e| e.0)
+                            .filter(|e| *e != 0)
+                            .collect::<Vec<_>>()
+                            .as_slice(),
+                    ));
+                    for i in 0..game.n_shells {
+                        if !cover_flips.get(i) {
+                            continue;
                         }
+                        let mut incorrect_chance_copy = incorrect_chance.clone();
+                        for j in 0..PLAYERS {
+                            if all_swaps[j].get(i) {
+                                incorrect_chance[j] = 0.0;
+                            } else {
+                                incorrect_chance_copy[j] = 0.0;
+                            }
+                        }
+                        let game = game.clone().flip(shell).flip(i).clone();
+                        let flipped_outcomes = self.apply_action(
+                            Key { game },
+                            uncertain_action,
+                            &mut weights,
+                            max_depth,
+                            incorrect_chance_copy,
+                        );
+                        permutations.push(Permutation {
+                            shell: Some((shell, !is_live)),
+                            outcomes: flipped_outcomes,
+                        });
                     }
-                    if permutations.len() == 1 {
-                        permutations[0].shell = None;
-                    }
+                }
+                if permutations.len() == 1 {
+                    permutations[0].shell = None;
                 }
             }
 
@@ -422,7 +426,10 @@ impl<const MULTIPLAYER: bool, const PLAYERS: usize> Tree<MULTIPLAYER, PLAYERS> {
             decisions.push(Decision {
                 actions: actions.into(),
                 weights,
-                permutations,
+                permutations: permutations
+                    .into_iter()
+                    .filter(|p| p.outcomes.len() > 0)
+                    .collect(),
             })
         });
         Decisions {
@@ -452,28 +459,59 @@ impl<const MULTIPLAYER: bool, const PLAYERS: usize> Tree<MULTIPLAYER, PLAYERS> {
         let mut hidden_games: HashSet<usize> = HashSet::new();
         let mut hidden_decisions: HashSet<(usize, usize)> = HashSet::new();
 
-        fn hide_game<const MULTIPLAYER: bool, const PLAYERS: usize>(tree: &Tree<MULTIPLAYER, PLAYERS>, hidden_games: &mut HashSet<usize>, hidden_decisions: &mut HashSet<(usize, usize)>, node_i: usize) {
-            hidden_games.insert(node_i);    
-            for (decision_i, _) in tree.nodes[node_i].decisions.as_ref().map_or(vec![], |e| e.decisions.iter().enumerate().collect()) {
+        fn hide_game<const MULTIPLAYER: bool, const PLAYERS: usize>(
+            tree: &Tree<MULTIPLAYER, PLAYERS>,
+            hidden_games: &mut HashSet<usize>,
+            hidden_decisions: &mut HashSet<(usize, usize)>,
+            node_i: usize,
+        ) {
+            hidden_games.insert(node_i);
+            for (decision_i, _) in tree.nodes[node_i]
+                .decisions
+                .as_ref()
+                .map_or(vec![], |e| e.decisions.iter().enumerate().collect())
+            {
                 hidden_decisions.insert((node_i, decision_i));
                 hide_decision(tree, hidden_games, hidden_decisions, node_i, decision_i);
             }
         }
 
-        fn hide_decision<const MULTIPLAYER: bool, const PLAYERS: usize>(tree: &Tree<MULTIPLAYER, PLAYERS>, hidden_games: &mut HashSet<usize>, hidden_decisions: &mut HashSet<(usize, usize)>, node_i: usize, decision_i: usize) {
+        fn hide_decision<const MULTIPLAYER: bool, const PLAYERS: usize>(
+            tree: &Tree<MULTIPLAYER, PLAYERS>,
+            hidden_games: &mut HashSet<usize>,
+            hidden_decisions: &mut HashSet<(usize, usize)>,
+            node_i: usize,
+            decision_i: usize,
+        ) {
             hidden_decisions.insert((node_i, decision_i));
-            for permutation in tree.nodes[node_i].decisions.as_ref().unwrap().decisions[decision_i].permutations.iter() {
+            for permutation in tree.nodes[node_i].decisions.as_ref().unwrap().decisions[decision_i]
+                .permutations
+                .iter()
+            {
                 for outcome in permutation.outcomes.iter() {
                     hide_game(tree, hidden_games, hidden_decisions, outcome.node);
                 }
             }
         }
 
-        fn visit_game<const MULTIPLAYER: bool, const PLAYERS: usize>(tree: &Tree<MULTIPLAYER, PLAYERS>, player: u8, hidden_games: &mut HashSet<usize>, hidden_decisions: &mut HashSet<(usize, usize)>, node_i: usize) {
+        fn visit_game<const MULTIPLAYER: bool, const PLAYERS: usize>(
+            tree: &Tree<MULTIPLAYER, PLAYERS>,
+            player: u8,
+            hidden_games: &mut HashSet<usize>,
+            hidden_decisions: &mut HashSet<(usize, usize)>,
+            node_i: usize,
+        ) {
             let node = &tree.nodes[node_i];
             if node.decisions.is_some() {
-                for (decision_i, decision) in node.decisions.as_ref().as_ref().map_or(vec![], |e| e.decisions.iter().enumerate().collect()) {
-                    if (true || node.game().turn == player) && Some(decision_i) != node.decisions.as_ref().unwrap().best {
+                for (decision_i, decision) in node
+                    .decisions
+                    .as_ref()
+                    .as_ref()
+                    .map_or(vec![], |e| e.decisions.iter().enumerate().collect())
+                {
+                    if (true || node.game().turn == player)
+                        && Some(decision_i) != node.decisions.as_ref().unwrap().best
+                    {
                         hide_decision(tree, hidden_games, hidden_decisions, node_i, decision_i);
                         continue;
                     }
@@ -487,7 +525,13 @@ impl<const MULTIPLAYER: bool, const PLAYERS: usize> Tree<MULTIPLAYER, PLAYERS> {
         }
 
         if let Some(player) = player {
-            visit_game(&self, player, &mut hidden_games, &mut hidden_decisions, self.root);
+            visit_game(
+                &self,
+                player,
+                &mut hidden_games,
+                &mut hidden_decisions,
+                self.root,
+            );
         }
 
         writeln!(
@@ -514,31 +558,44 @@ config:
                 continue;
             }
             let node = &self.nodes[node_i];
-            let mut game_text = node.game()
-            .clone()
-            .with_mask()
-            .to_string();
+            let mut game_text = node.game().clone().with_mask().to_string();
 
-            if node.decisions.as_ref().map_or(true, |e| e.decisions.is_empty()) && !node.game().game_over() {
+            if node
+                .decisions
+                .as_ref()
+                .map_or(true, |e| e.decisions.is_empty())
+                && !node.game().game_over()
+            {
                 let weights = Node::heuristic_weights(node.game());
-                game_text += &weights.iter().map(|w| fmt_weight(*w)).collect::<Vec<_>>().join(",");
+                game_text += &weights
+                    .iter()
+                    .map(|w| fmt_weight(*w))
+                    .collect::<Vec<_>>()
+                    .join(",");
                 // game_text += "\n";
                 // let points = Node::all_player_points(node.game()).0;
                 // game_text += &points.iter().map(|w| format!("{}", w)).collect::<Vec<_>>().join(",");
             }
 
             let is_me = Some(node.game().turn) == player;
-            let game_color = if is_me || player.is_none() { "green" } else { "red" };
+            let game_color = if is_me || player.is_none() {
+                "green"
+            } else {
+                "red"
+            };
             writeln!(
                 s,
                 "  n{}[{:?}]",
                 node_i,
-                game_text
-                    .replace(" ", "&nbsp;")
-                    .replace("\n", "<br>")
+                game_text.replace(" ", "&nbsp;").replace("\n", "<br>")
             )
             .unwrap();
-            writeln!(s, "  style n{} text-align:left,stroke:{};", node_i, game_color).unwrap();
+            writeln!(
+                s,
+                "  style n{} text-align:left,stroke:{};",
+                node_i, game_color
+            )
+            .unwrap();
             if let Some(player) = player {
                 if node.game().game_over() {
                     if node.game().turn == player {
@@ -552,20 +609,33 @@ config:
             let mut hidden = vec![];
             if let Some(decisions) = node.decisions.as_ref() {
                 for (decision_i, decision) in decisions.decisions.iter().enumerate() {
-                    let actions_strs = decision.actions.iter().map(|a| {
-                        a.to_string(Some(node.game().turn), Some(PLAYERS))
-                    }).collect::<Vec<_>>();
+                    let actions_strs = decision
+                        .actions
+                        .iter()
+                        .map(|a| a.to_string(Some(node.game().turn), Some(PLAYERS)))
+                        .collect::<Vec<_>>();
                     let weight = decision.weights[node.game().turn as usize];
                     if hidden_decisions.contains(&(node_i, decision_i)) {
                         hidden.push((weight, actions_strs));
                         continue;
                     }
                     let ds = format!("d{}-{}", node_i, decision_i);
-                    writeln!(s, "  {}({:?})", ds, format!("{} {}", fmt_weight(weight), actions_strs.join("<br>"))).unwrap();
+                    writeln!(
+                        s,
+                        "  {}({:?})",
+                        ds,
+                        format!("{} {}", fmt_weight(weight), actions_strs.join(" "))
+                    )
+                    .unwrap();
                     writeln!(s, "  n{} --> {}", node_i, ds).unwrap();
                     let is_best = Some(decision_i) == decisions.best;
                     if is_best {
-                        writeln!(s, "  style d{}-{} stroke: {}", node_i, decision_i, game_color).unwrap();
+                        writeln!(
+                            s,
+                            "  style d{}-{} stroke: {}",
+                            node_i, decision_i, game_color
+                        )
+                        .unwrap();
                         writeln!(s, "  linkStyle {} stroke: {};", n_links, game_color).unwrap();
                     }
                     n_links += 1;
@@ -593,7 +663,8 @@ config:
                                         .into()
                                 };
                                 if let Some(p) = p {
-                                    writeln!(s, "  {} -->|{:?}| n{}", parent, p, outcome.node).unwrap();
+                                    writeln!(s, "  {} -->|{:?}| n{}", parent, p, outcome.node)
+                                        .unwrap();
                                 } else {
                                     writeln!(s, "  {} --> n{}", parent, outcome.node).unwrap();
                                 }
@@ -626,7 +697,17 @@ config:
             }
             if hidden.len() > 0 {
                 hidden.sort_by_key(|(w, _)| (*w * -1000000.0) as i32);
-                writeln!(s, "  h{}({:?})", node_i, hidden.iter().map(|(w, a)| format!("{} {}", fmt_weight(*w), a.join(" "))).collect::<Vec<_>>().join("<br>")).unwrap();
+                writeln!(
+                    s,
+                    "  h{}({:?})",
+                    node_i,
+                    hidden
+                        .iter()
+                        .map(|(w, a)| format!("{} {}", fmt_weight(*w), a.join(" ")))
+                        .collect::<Vec<_>>()
+                        .join("<br>")
+                )
+                .unwrap();
                 writeln!(s, "  n{} --> h{}", node_i, node_i).unwrap();
                 n_links += 1;
                 writeln!(s, "  style h{} text-align:left", node_i).unwrap();

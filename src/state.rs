@@ -1,12 +1,13 @@
+use bitintr::{Pdep, Pext};
+use lazy_static::lazy_static;
 use num_traits::{PrimInt, WrappingSub};
+use slab::Iter;
 use smallvec::{smallvec, SmallVec};
+use std::array;
 use std::fmt::{format, Display, Formatter};
 use std::ops::{BitAnd, BitOr, Not, Range};
 use std::thread::sleep;
 use std::time::Duration;
-use bitintr::{Pdep, Pext};
-use slab::Iter;
-use lazy_static::lazy_static;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord)]
 #[repr(u8)]
@@ -216,7 +217,16 @@ impl<T: PrimInt + WrappingSub + TryFrom<u64>> BitArray<T> {
     }
 
     pub fn all(len: u8) -> Self {
-        BitArray(T::from(T::one().to_u64().unwrap().unbounded_shl(len as u32).wrapping_sub(1)).unwrap())
+        BitArray(
+            T::from(
+                T::one()
+                    .to_u64()
+                    .unwrap()
+                    .unbounded_shl(len as u32)
+                    .wrapping_sub(1),
+            )
+            .unwrap(),
+        )
     }
 
     pub fn single(index: u8) -> Self {
@@ -361,9 +371,7 @@ pub struct GameWithMask<const MULTIPLAYER: bool, const PLAYERS: usize> {
     pub is_masked: bool,
 }
 
-impl<const MULTIPLAYER: bool, const PLAYERS: usize> Display
-    for GameWithMask<MULTIPLAYER, PLAYERS>
-{
+impl<const MULTIPLAYER: bool, const PLAYERS: usize> Display for GameWithMask<MULTIPLAYER, PLAYERS> {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         let game = &self.game;
         write!(f, "|")?;
@@ -462,11 +470,7 @@ pub enum ItemAction {
 
 impl Display for ItemAction {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
-        write!(
-            f,
-            "{}",
-            self.to_string(None),
-        )?;
+        write!(f, "{}", self.to_string(None),)?;
         Ok(())
     }
 }
@@ -474,12 +478,14 @@ impl Display for ItemAction {
 impl ItemAction {
     pub fn to_string(&self, n_players: Option<usize>) -> String {
         match self {
-            ItemAction::UseSimple(item) => format!("use {}", item),
-            ItemAction::StealSimple(player, item) if n_players == Some(2) => format!("steal {}", item),
-            ItemAction::StealSimple(player, item) => format!("steal {} from {}", item, player),
-            ItemAction::StealHandcuffs(player, target) =>
-                format!("use {} on {} from {}", Handcuffs, target, player),
-            ItemAction::Handcuff(target) => format!("use {} on {}", Handcuffs, target),
+            ItemAction::UseSimple(Item::Adrenaline) => format!("Adr _"),
+            ItemAction::UseSimple(item) => format!("{}", item),
+            ItemAction::StealSimple(_, item) if n_players == Some(2) => format!("Adr {}", item),
+            ItemAction::StealSimple(player, item) => format!("Adr{} {}", player, item),
+            ItemAction::StealHandcuffs(_, _) if n_players == Some(2) => "Adr Cuf".to_string(),
+            ItemAction::StealHandcuffs(player, target) => format!("Adr{} Cuf{}", player, target),
+            ItemAction::Handcuff(_) if n_players == Some(2) => "Cuf".to_string(),
+            ItemAction::Handcuff(target) => format!("Cuf{}", target),
         }
     }
 }
@@ -492,11 +498,7 @@ pub enum Action {
 
 impl Display for Action {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
-        write!(
-            f,
-            "{}",
-            self.to_string(None, None),
-        )?;
+        write!(f, "{}", self.to_string(None, None),)?;
         Ok(())
     }
 }
@@ -505,9 +507,11 @@ impl Action {
     pub fn to_string(&self, player: Option<u8>, n_players: Option<usize>) -> String {
         match self {
             Action::Item(action) => action.to_string(n_players),
-            Action::Shoot(target) if Some(*target) == player => "shoot self".to_string(),
-            Action::Shoot(target) if n_players == Some(2) && Some(*target) != player => "shoot".to_string(),
-            Action::Shoot(target) => format!("shoot {}", target),
+            Action::Shoot(target) if Some(*target) == player => "!s".to_string(),
+            Action::Shoot(target) if n_players == Some(2) && Some(*target) != player => {
+                "!".to_string()
+            }
+            Action::Shoot(target) => format!("!{}", target),
         }
     }
 }
@@ -529,17 +533,13 @@ impl Gosper {
     pub fn new(k: u8, n: u8) -> Self {
         assert!(k <= n);
         let start = 1u8.unbounded_shl(k as u32).wrapping_sub(1u8);
-        Gosper(
-            start,
-            start.unbounded_shl((n - k) as u32),
-        )
+        Gosper(start, start.unbounded_shl((n - k) as u32))
     }
 }
 
 impl Iterator for Gosper {
     type Item = u8;
     fn next(&mut self) -> Option<Self::Item> {
-        
         let next = self.0;
         if next < self.1 {
             let c = next & 0.wrapping_sub(&next);
@@ -563,9 +563,7 @@ lazy_static! {
 pub fn min_cover_inner<const S: usize>(sets: [u8; S]) -> u8 {
     let lut = &LUT;
     let any = sets.iter().fold(0, u8::bitor);
-    let masks = sets.map(|e| {
-        (e as u32).pext(any as u32) as u8
-    });
+    let masks = sets.map(|e| (e as u32).pext(any as u32) as u8);
     let max_k = any.count_ones();
     let max_i = 1u8.unbounded_shl(max_k).wrapping_sub(1u8);
     for k in 1..any.count_ones() {
@@ -582,6 +580,33 @@ pub fn min_cover_inner<const S: usize>(sets: [u8; S]) -> u8 {
         }
     }
     any
+}
+
+pub struct RevealPermutation<const MULTIPLAYER: bool, const PLAYERS: usize> {
+    pub reveal: Option<(u8, Option<u8>)>,
+    pub outcomes: SmallVec<[(Game<MULTIPLAYER, PLAYERS>, [f32; PLAYERS]); 2]>,
+}
+
+impl<const MULTIPLAYER: bool, const PLAYERS: usize> RevealPermutation<MULTIPLAYER, PLAYERS> {
+    pub fn expand<F: FnMut(Game<MULTIPLAYER, PLAYERS>) -> SmallVec<[(Game<MULTIPLAYER, PLAYERS>, f32); 2]>>(self, mut f: F) -> Self {
+        let mut outcomes = smallvec![];
+        for (game, chance) in self.outcomes {
+            for (outcome, outcome_chance) in f(game) {
+                outcomes.push((outcome, array::from_fn(|i| chance[i] * outcome_chance)));
+            }
+        }
+        RevealPermutation {
+            reveal: self.reveal,
+            outcomes,
+        }
+    }
+
+    pub fn map<F: FnMut(Game<MULTIPLAYER, PLAYERS>) -> Game<MULTIPLAYER, PLAYERS>>(self, mut f: F) -> Self {
+        RevealPermutation {
+            reveal: self.reveal,
+            outcomes: self.outcomes.into_iter().map(|(game, chance)| (f(game), chance)).collect()
+        }
+    }
 }
 
 pub fn min_cover(sets: &[u8]) -> u8 {
@@ -610,9 +635,7 @@ pub fn min_cover(sets: &[u8]) -> u8 {
 }
 
 impl<const MULTIPLAYER: bool, const PLAYERS: usize> Game<MULTIPLAYER, PLAYERS> {
-    pub fn with_mask(
-        self,
-    ) -> GameWithMask<MULTIPLAYER, PLAYERS> {
+    pub fn with_mask(self) -> GameWithMask<MULTIPLAYER, PLAYERS> {
         GameWithMask {
             game: self,
             is_masked: true,
@@ -620,8 +643,11 @@ impl<const MULTIPLAYER: bool, const PLAYERS: usize> Game<MULTIPLAYER, PLAYERS> {
     }
 
     pub fn assert_valid(&self) {
-        assert_eq!(self.live_shells.0, self.live_shells.0 & BitArray::<u8>::all(self.n_shells).0);
-        for i in  0..PLAYERS {
+        assert_eq!(
+            self.live_shells.0,
+            self.live_shells.0 & BitArray::<u8>::all(self.n_shells).0
+        );
+        for i in 0..PLAYERS {
             for j in 0..self.n_shells {
                 let swaps = self.all_swaps(j, self.players[i].known_shells);
                 assert_eq!(swaps, swaps & BitArray::<u8>::all(self.n_shells));
@@ -760,7 +786,7 @@ impl<const MULTIPLAYER: bool, const PLAYERS: usize> Game<MULTIPLAYER, PLAYERS> {
         self.visit_actions(|game, action| {
             actions.push(action.clone());
             let known_shells = self.all_known_shells();
-            if game.is_action_certain(known_shells, &action) {
+            if game.is_action_certain(known_shells, action) {
                 game.clone()
                     .apply_action(action.clone(), |next_game, next_chance| {
                         assert_eq!(next_chance, 1.0);
@@ -855,8 +881,9 @@ impl<const MULTIPLAYER: bool, const PLAYERS: usize> Game<MULTIPLAYER, PLAYERS> {
                 // If the player knows all lives or all blanks, they now know all of them
                 let known = self.players[player].known_shells;
                 let blank_shells = self.blank_shells();
-                if self.live_shells == self.live_shells & known ||
-                    blank_shells == blank_shells & known {
+                if self.live_shells == self.live_shells & known
+                    || blank_shells == blank_shells & known
+                {
                     self.players[player].known_shells = BitArray::all(self.n_shells);
                 }
             }
@@ -928,15 +955,22 @@ impl<const MULTIPLAYER: bool, const PLAYERS: usize> Game<MULTIPLAYER, PLAYERS> {
                     // Nothing happens
                     f(self, 1.0);
                 } else {
+                    let mut nothing_chance = 0.0;
                     let chance = 1.0 / (n_shells - 1) as f32;
-                    for i in 1..n_shells - 1 {
-                        f(self.clone().reveal_round(turn, i), chance)
+                    for i in 1..n_shells {
+                        if self.players[turn as usize].known_shells.get(i) {
+                            nothing_chance += chance;
+                        } else {
+                            f(self.clone().reveal_round(turn, i), chance)
+                        }
                     }
-                    f(self.reveal_round(turn, n_shells - 1), chance)
+                    if nothing_chance > 0.0 {
+                        f(self, nothing_chance);
+                    }
                 }
             }
             MagnifyingGlass => {
-                f(self.reveal_round(turn, 1), 1.0);
+                f(self.reveal_round(turn, 0), 1.0);
             }
             Beer => {
                 f(self.eject_round(), 1.0);
@@ -995,16 +1029,25 @@ impl<const MULTIPLAYER: bool, const PLAYERS: usize> Game<MULTIPLAYER, PLAYERS> {
         }
     }
 
-    fn apply_actions_inner<F: FnMut(Game<MULTIPLAYER, PLAYERS>, f32)>(self, actions: &[Action], chance: f32, f: &mut F) {
+    fn apply_actions_inner<F: FnMut(Game<MULTIPLAYER, PLAYERS>, f32)>(
+        self,
+        actions: &[Action],
+        chance: f32,
+        f: &mut F,
+    ) {
         match actions {
             [] => f(self, chance),
             [next, rest @ ..] => self.apply_action(*next, |game, chance2| {
                 game.apply_actions_inner(rest, chance * chance2, f)
-            })
+            }),
         }
     }
 
-    pub fn apply_actions<F: FnMut(Game<MULTIPLAYER, PLAYERS>, f32)>(self, actions: &[Action], mut f: F) {
+    pub fn apply_actions<F: FnMut(Game<MULTIPLAYER, PLAYERS>, f32)>(
+        self,
+        actions: &[Action],
+        mut f: F,
+    ) {
         self.apply_actions_inner(actions, 1.0, &mut f)
     }
 
@@ -1026,7 +1069,10 @@ impl<const MULTIPLAYER: bool, const PLAYERS: usize> Game<MULTIPLAYER, PLAYERS> {
                 // If we know the current shell
                 known_shells.front()
             }
-            Beer => true,
+            Beer => {
+                // If we know the current shell
+                known_shells.front()
+            }
             Remote => true,
             HandSaw => true,
             Handcuffs => unreachable!(),
@@ -1034,16 +1080,16 @@ impl<const MULTIPLAYER: bool, const PLAYERS: usize> Game<MULTIPLAYER, PLAYERS> {
         }
     }
 
-    fn is_item_action_certain(&self, known_shells: BitArray<u8>, action: &ItemAction) -> bool {
+    fn is_item_action_certain(&self, known_shells: BitArray<u8>, action: ItemAction) -> bool {
         match action {
-            ItemAction::UseSimple(item) => self.is_item_certain(known_shells, *item),
-            ItemAction::StealSimple(_, item) => self.is_item_certain(known_shells, *item),
+            ItemAction::UseSimple(item) => self.is_item_certain(known_shells, item),
+            ItemAction::StealSimple(_, item) => self.is_item_certain(known_shells, item),
             ItemAction::StealHandcuffs(_, _) => true,
             ItemAction::Handcuff(_) => true,
         }
     }
 
-    pub fn is_action_certain(&self, known_shells: BitArray<u8>, action: &Action) -> bool {
+    pub fn is_action_certain(&self, known_shells: BitArray<u8>, action: Action) -> bool {
         match action {
             Action::Item(item_action) => self.is_item_action_certain(known_shells, item_action),
             Action::Shoot(_) => {
@@ -1063,11 +1109,11 @@ impl<const MULTIPLAYER: bool, const PLAYERS: usize> Game<MULTIPLAYER, PLAYERS> {
         }
     }
 
-    pub fn action_uses_shell(&self, action: &Action) -> bool {
+    pub fn action_uses_shell(&self, action: Action) -> bool {
         match action {
             Action::Item(item_action) => match item_action {
-                ItemAction::UseSimple(item) => self.item_uses_shell(*item),
-                ItemAction::StealSimple(_, item) => self.item_uses_shell(*item),
+                ItemAction::UseSimple(item) => self.item_uses_shell(item),
+                ItemAction::StealSimple(_, item) => self.item_uses_shell(item),
                 _ => false,
             },
             Action::Shoot(_) => true,
@@ -1118,7 +1164,176 @@ impl<const MULTIPLAYER: bool, const PLAYERS: usize> Game<MULTIPLAYER, PLAYERS> {
         }
     }
 
+    pub fn visit_shell_perspective<F: FnMut(RevealPermutation<MULTIPLAYER, PLAYERS>)>(
+        mut self,
+        shell: u8,
+        chance: f32,
+        mut f: F,
+    ) {
+        if self.all_known_shells().get(shell) {
+            f(RevealPermutation {
+                reveal: None,
+                outcomes: smallvec![(self, [chance; PLAYERS])],
+            });
+        } else {
+            let mut correct_chance = [0.0; PLAYERS];
+            for i in 0..PLAYERS {
+                correct_chance[i] = self.live_chance(shell, self.players[i].known_shells) * chance;
+            }
+            let is_live = self.live_shells.get(shell);
+            let (correct_chance, mut incorrect_chance) = if is_live {
+                (correct_chance, correct_chance.map(|c| chance - c))
+            } else {
+                (correct_chance.map(|c| chance - c), correct_chance)
+            };
+            let all_swaps = self.all_player_swaps(shell);
+            let cover_flips = BitArray(min_cover(
+                all_swaps
+                    .iter()
+                    .map(|e| e.0)
+                    .filter(|e| *e != 0)
+                    .collect::<Vec<_>>()
+                    .as_slice(),
+            ));
+            f(RevealPermutation {
+                reveal: Some((shell, None)),
+                outcomes: smallvec![(self.clone(), correct_chance)],
+            });
+            self = self.flip(shell);
+            for i in 0..self.n_shells {
+                if !cover_flips.get(i) {
+                    continue;
+                }
+                let mut incorrect_chance_copy = incorrect_chance.clone();
+                for j in 0..PLAYERS {
+                    if all_swaps[j].get(i) {
+                        incorrect_chance[j] = 0.0;
+                    } else {
+                        incorrect_chance_copy[j] = 0.0;
+                    }
+                }
+                f(RevealPermutation {
+                    reveal: Some((shell, Some(i))),
+                    outcomes: smallvec![(self.clone().flip(i), incorrect_chance_copy)],
+                });
+            }
+        }
+    }
+
+    pub fn visit_item_perspective<F: FnMut(RevealPermutation<MULTIPLAYER, PLAYERS>)>(
+        self,
+        item: Item,
+        f: &mut F,
+    ) -> Option<Self> {
+        match item {
+            BurnerPhone => {
+                if self.n_shells <= 1 {
+                    f(RevealPermutation {
+                        reveal: None,
+                        outcomes: smallvec![(self, [1.0; PLAYERS])],
+                    });
+                    None
+                } else {
+                    let turn = self.turn;
+                    let mut nothing_chance = 0.0;
+                    let n_shells = self.n_shells;
+                    let chance = 1.0 / (n_shells - 1) as f32;
+                    for i in 1..n_shells {
+                        if self.players[turn as usize].known_shells.get(i) {
+                            nothing_chance += chance;
+                        } else {
+                            self.clone().visit_shell_perspective(i, chance, |shell_perm| {
+                                f(shell_perm.map(|game| {
+                                    let turn = game.turn;
+                                    game.reveal_round(turn, i)
+                                }))
+                            });
+                        }
+                    }
+                    if nothing_chance > 0.0 {
+                        f(RevealPermutation {
+                            reveal: None,
+                            outcomes: smallvec![(self, [nothing_chance; PLAYERS])],
+                        });
+                    }
+                    None
+                }
+            }
+            MagnifyingGlass => {
+                self.visit_shell_perspective(0, 1.0, |shell_perm| {
+                    f(shell_perm.map(|game| {
+                        let turn = game.turn;
+                        game.reveal_round(turn, 0)
+                    }))
+                });
+                None
+            }
+            Beer => {
+                self.visit_shell_perspective(0, 1.0, |shell_perm| {
+                    f(shell_perm.map(|game| {
+                        game.eject_round()
+                    }))
+                });
+                None
+            }
+            _ => Some(self),
+        }
+    }
+
+    pub fn visit_item_action_perspective<F: FnMut(RevealPermutation<MULTIPLAYER, PLAYERS>)>(
+        self,
+        item: ItemAction,
+        f: &mut F,
+    ) -> Option<Self> {
+        match item {
+            ItemAction::UseSimple(item) => {
+                let turn = self.turn;
+                self.remove_item(turn, item).visit_item_perspective(item, f)
+            }
+            ItemAction::StealSimple(target, item) => {
+                let turn = self.turn;
+                self.remove_item(turn, Adrenaline).remove_item(target, item).visit_item_perspective(item, f)
+            }
+            _ => Some(self),
+        }
+    }
+
+    pub fn visit_action_perspective<F: FnMut(RevealPermutation<MULTIPLAYER, PLAYERS>)>(
+        self,
+        action: Action,
+        mut f: F,
+    ) {
+        match action {
+            Action::Item(item_action) => match self.visit_item_action_perspective(item_action, &mut f) {
+                None => (),
+                Some(game) => game.apply_action(action, |game, outcome_chance| {
+                    f(RevealPermutation {
+                        reveal: None,
+                        outcomes: smallvec![(game, [outcome_chance; PLAYERS])],
+                    })
+                }),
+            },
+            Action::Shoot(target) => {
+                self.visit_shell_perspective(0, 1.0, |shell_perm| {
+                    f(shell_perm.map(|game| {
+                        let is_live = game.live_shells.front();
+                        if is_live {
+                            let damage = game.live_damage();
+                            game.eject_round().damage_and_end_turn(target, damage)
+                        } else if target == game.turn {
+                            game.eject_round().continue_turn()
+                        } else {
+                            game.eject_round().end_turn()
+                        }
+                    }))
+                });
+            }
+        }
+    }
+
     pub fn live_chance_ratio(&self, shell: u8, known: BitArray<u8>) -> (u32, u32) {
+        self.assert_valid();
+        assert!(shell < self.n_shells);
         if known.get(shell) {
             return if self.live_shells.get(shell) {
                 (1, 1)
@@ -1130,6 +1345,13 @@ impl<const MULTIPLAYER: bool, const PLAYERS: usize> Game<MULTIPLAYER, PLAYERS> {
         let live = self.live_shells.0;
         let unknown_live = (live & !known).count_ones();
         let unknown = self.n_shells as u32 - known.count_ones();
+        assert!(
+            unknown > 0,
+            "live {:b} known: {:b} n_shells: {}",
+            live,
+            known,
+            self.n_shells
+        );
         (unknown_live, unknown)
     }
 
